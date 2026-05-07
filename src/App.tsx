@@ -5,6 +5,7 @@ import { GuessMap } from "./components/GuessMap";
 import { HomeScreen } from "./components/HomeScreen";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { RoundResultOverlay } from "./components/RoundResultOverlay";
+import { SoundDock } from "./components/SoundDock";
 import { modes } from "./data/modes";
 import { concreteZoneIds, zones } from "./data/zones";
 import { distanceMeters } from "./lib/geo";
@@ -175,52 +176,73 @@ export default function App() {
     });
   }, []);
 
-  if (game.status === "loading-round") return <LoadingScreen />;
+  if (game.status === "loading-round") {
+    return (
+      <>
+        <LoadingScreen />
+        <SoundDock />
+      </>
+    );
+  }
   if (game.status === "playing" && game.currentRound) {
     return (
-      <GameScreen
-        round={game.currentRound}
-        modeId={game.selectedMode}
-        viewSeconds={game.viewSeconds}
-        totalRounds={game.totalRounds}
-        totalScore={game.totalScore}
-        onSubmitGuess={submitGuess}
-        onResetView={resetView}
-        onDebugGenerate={debugGenerate}
-      />
+      <>
+        <GameScreen
+          round={game.currentRound}
+          modeId={game.selectedMode}
+          viewSeconds={game.viewSeconds}
+          totalRounds={game.totalRounds}
+          totalScore={game.totalScore}
+          onSubmitGuess={submitGuess}
+          onResetView={resetView}
+          onDebugGenerate={debugGenerate}
+        />
+        <SoundDock />
+      </>
     );
   }
   if (game.status === "round-result" && game.currentRound) {
     return (
-      <main className="game-screen">
-        <div className="result-map-shell">
-          <GuessMap
-            zoneId={game.currentRound.zoneId}
-            guessLocation={game.currentRound.guessLocation}
-            actualLocation={game.currentRound.actualLocation}
-            onGuessChange={() => undefined}
-            onSubmit={() => undefined}
-            resultMode
+      <>
+        <main className="game-screen">
+          <div className="result-map-shell">
+            <GuessMap
+              zoneId={game.currentRound.zoneId}
+              guessLocation={game.currentRound.guessLocation}
+              actualLocation={game.currentRound.actualLocation}
+              onGuessChange={() => undefined}
+              onSubmit={() => undefined}
+              resultMode
+            />
+          </div>
+          <RoundResultOverlay
+            round={game.currentRound}
+            isFinalRound={game.currentRoundIndex + 1 >= game.totalRounds}
+            onNext={nextRound}
           />
-        </div>
-        <RoundResultOverlay
-          round={game.currentRound}
-          isFinalRound={game.currentRoundIndex + 1 >= game.totalRounds}
-          onNext={nextRound}
-        />
-      </main>
+        </main>
+        <SoundDock />
+      </>
     );
   }
   if (game.status === "game-over" && finalEntry) {
     return (
-      <FinalResults
-        entry={finalEntry}
-        leaderboard={leaderboard}
-        onPlayAgain={() => setGame(initialState)}
-        onLeaderboardChanged={() => setLeaderboard(getLeaderboard())}
-      />
+      <>
+        <FinalResults
+          entry={finalEntry}
+          leaderboard={leaderboard}
+          onPlayAgain={() => setGame(initialState)}
+          onLeaderboardChanged={() => setLeaderboard(getLeaderboard())}
+        />
+        <SoundDock />
+      </>
     );
   }
 
-  return <HomeScreen onStart={startGame} mapsLoaded={mapsLoaded} mapsError={mapsError} />;
+  return (
+    <>
+      <HomeScreen onStart={startGame} mapsLoaded={mapsLoaded} mapsError={mapsError} />
+      <SoundDock />
+    </>
+  );
 }

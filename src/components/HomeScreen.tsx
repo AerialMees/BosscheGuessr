@@ -22,8 +22,6 @@ export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) 
   const [zoneId, setZoneId] = useState<ZoneId>("empel");
   const [modeId, setModeId] = useState<ModeId>("classic");
   const [viewSeconds, setViewSeconds] = useState(10);
-  const [soundEnabled, setSoundEnabled] = useState(sound.enabled);
-  const [soundVolume, setSoundVolume] = useState(sound.volume);
   const leaderboard = useMemo(() => getLeaderboard(), []);
   const canStart = playerName.trim().length > 0;
 
@@ -88,35 +86,6 @@ export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) 
               />
             </label>
           )}
-          <div className="sound-controls">
-            <label className="sound-toggle">
-              <input
-                type="checkbox"
-                checked={soundEnabled}
-                onChange={(event) => {
-                  sound.setEnabled(event.target.checked);
-                  setSoundEnabled(event.target.checked);
-                  sound.playClick();
-                }}
-              />
-              Sound
-            </label>
-            <label>
-              Volume
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={soundVolume}
-                onChange={(event) => {
-                  const volume = Number(event.target.value);
-                  sound.setVolume(volume);
-                  setSoundVolume(volume);
-                }}
-              />
-            </label>
-          </div>
           <RetroButton type="submit" disabled={!canStart}>
             Start Game
           </RetroButton>

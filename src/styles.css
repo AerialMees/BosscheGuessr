@@ -150,22 +150,46 @@ input:focus, select:focus { border-color: var(--neon-magenta); box-shadow: var(-
 }
 .setup-form label { display: grid; gap: 0.4rem; color: var(--text-muted); }
 .setup-form small { color: var(--text-dim); line-height: 1.45; }
-.sound-controls {
-  display: grid;
-  grid-template-columns: minmax(120px, max-content) 1fr;
-  gap: 1rem;
+.sound-dock {
+  position: fixed;
+  z-index: 30;
+  left: 1rem;
+  bottom: 1rem;
+  display: flex;
   align-items: center;
-  padding: 0.85rem;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: var(--panel-soft);
+  gap: 0.6rem;
+  padding: 0.55rem;
+  border: 1px solid var(--border-blue);
+  background: rgba(5, 5, 16, 0.88);
+  box-shadow: var(--shadow-blue);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-md);
+}
+.sound-dock-toggle {
+  border: 1px solid var(--border-orange);
+  background: rgba(255, 138, 0, 0.1);
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  font-size: 0.78rem;
   border-radius: var(--radius-sm);
 }
-.sound-toggle {
-  display: flex !important;
-  grid-template-columns: auto 1fr;
-  align-items: center;
+.sound-dock-toggle.sound-off {
+  border-color: rgba(255, 77, 109, 0.7);
+  color: #ffd6dd;
 }
-.sound-toggle input { width: auto; }
+.sound-dock-volume {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+.sound-dock-volume input {
+  width: 92px;
+  padding: 0;
+}
 .retro-button {
   border: 1px solid var(--border-blue);
   background: linear-gradient(180deg, rgba(0, 217, 255, 0.12), rgba(255, 43, 214, 0.08));
@@ -244,7 +268,7 @@ td { color: var(--text-main); }
   backdrop-filter: blur(10px);
 }
 .hud span:nth-child(2) { color: var(--neon-orange); }
-.game-actions { position: absolute; z-index: 5; left: 1rem; bottom: 1rem; }
+.game-actions { position: absolute; z-index: 5; left: 1rem; bottom: 5rem; }
 .guess-map {
   position: absolute;
   z-index: 6;
