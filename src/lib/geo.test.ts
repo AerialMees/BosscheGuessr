@@ -1,0 +1,27 @@
+import { describe, expect, it } from "vitest";
+import { distanceMeters, isPointInBounds, isPointInPolygon } from "./geo";
+
+describe("geo helpers", () => {
+  it("checks rectangular bounds", () => {
+    const bounds = { north: 2, south: 0, east: 2, west: 0 };
+    expect(isPointInBounds({ lat: 1, lng: 1 }, bounds)).toBe(true);
+    expect(isPointInBounds({ lat: 3, lng: 1 }, bounds)).toBe(false);
+  });
+
+  it("checks polygon containment", () => {
+    const polygon = [
+      { lat: 0, lng: 0 },
+      { lat: 0, lng: 2 },
+      { lat: 2, lng: 2 },
+      { lat: 2, lng: 0 },
+    ];
+    expect(isPointInPolygon({ lat: 1, lng: 1 }, polygon)).toBe(true);
+    expect(isPointInPolygon({ lat: 3, lng: 1 }, polygon)).toBe(false);
+  });
+
+  it("computes approximate haversine distance", () => {
+    const meters = distanceMeters({ lat: 51.7, lng: 5.3 }, { lat: 51.701, lng: 5.3 });
+    expect(meters).toBeGreaterThan(100);
+    expect(meters).toBeLessThan(120);
+  });
+});
