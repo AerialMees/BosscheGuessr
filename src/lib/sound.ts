@@ -53,7 +53,12 @@ class SoundManager {
   playPerfectScore() { this.sequence([[520, 0], [780, 0.07], [1040, 0.14], [1320, 0.22]], "square", 0.1); }
   playGameOver() { this.sequence([[520, 0], [390, 0.12], [650, 0.24], [260, 0.38]], "triangle", 0.13); }
   playTimerTick() { this.tone(760, 0.035, "square", 0.18); }
-  playTimerWarning() { this.sequence([[880, 0], [440, 0.055]], "square", 0.06); }
+  playTimerWarning(remainingSeconds = 5) {
+    const urgency = Math.max(0, Math.min(1, (5 - remainingSeconds) / 5));
+    const high = 760 + urgency * 520;
+    const low = 360 + urgency * 220;
+    this.sequence([[high, 0], [low, 0.045], [high * 1.25, 0.09]], "square", 0.045);
+  }
 
   private tone(frequency: number, duration: number, wave: Wave, gainScale: number) {
     if (!this.enabled || this.volume <= 0) return;

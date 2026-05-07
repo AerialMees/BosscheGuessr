@@ -17,7 +17,7 @@ Street View is shown only through the official Google Maps JavaScript API, with 
 
 - Choose Empel, Rosmalen, Engelen, Kerkdriel, Den Bosch, or Mixed Local Mode.
 - Play 5-round local guessing games.
-- Classic, No Move, Speedrun, Only Bike Paths, and X-Second View modes.
+- Classic, No Move, and X-Second View modes.
 - Random Street View panorama generation inside manually configured town bounds.
 - Guessing map with click-to-place marker.
 - Distance and score calculation up to 5000 points per round.
@@ -227,9 +227,7 @@ When `VITE_ENABLE_DEBUG_TOOLS=true`, the guessing map draws the selected gamepla
 
 - Classic Local: five relaxed rounds with movement allowed.
 - No Move Mode: movement limited, with pan and zoom still available.
-- Speedrun Mode: configured for fast 60-second rounds.
-- Only Bike Paths: experimental mode that uses curated seed points near bike-friendly areas, quiet roads, dikes, and green routes. It is not guaranteed to land on official bike paths.
-- X-Second View: choose 3-60 seconds to inspect Street View, then the panorama is covered and you guess from memory.
+- X-Second View: choose 0.1-60 seconds to inspect Street View, then the panorama is covered with a translucent memory overlay and you guess from memory.
 
 ## Sound effects
 
@@ -282,17 +280,15 @@ Manual boundary and color checklist:
 5. Confirm locations stay roughly inside their towns.
 6. Confirm Street View colors are normal.
 7. Confirm guessing map colors are normal.
-8. Confirm Only Bike Paths starts rounds.
-9. Confirm X-Second View hides Street View after the chosen time and guessing still works.
-10. Confirm sound toggle and volume work after user interaction.
-11. Confirm leaderboard still works.
-12. Confirm no `.env` or API key is committed.
+8. Confirm X-Second View covers Street View after the chosen time and guessing still works.
+9. Confirm sound toggle and volume work after user interaction.
+10. Confirm leaderboard still works.
+11. Confirm no `.env` or API key is committed.
 
 ## Known limitations
 
 - Town boundaries are approximate gameplay polygons.
 - Random generation can fail if a zone has sparse Street View coverage or bounds are too tight.
-- Only Bike Paths uses approximate curated seeds and may fall back to normal random generation.
 - No Move mode disables click-to-go and links controls, but Google UI behavior can vary.
 - No multiplayer or shareable challenge seed yet.
 
@@ -303,7 +299,6 @@ Manual boundary and color checklist:
 - Daily local challenge.
 - Custom town editor.
 - Manual seed curation.
-- Only bike paths.
 - Only near water/dikes.
 - Den Bosch full-region mode.
 - Difficulty based on road type.

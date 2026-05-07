@@ -71,18 +71,23 @@ export function GameScreen({ round, modeId, viewSeconds, totalRounds, totalScore
     if (!activeTimerSeconds) return;
     setSecondsRemaining(activeTimerSeconds);
     setStreetViewHidden(false);
+    const startedAt = performance.now();
+    let lastWarningBucket = Number.POSITIVE_INFINITY;
     const interval = window.setInterval(() => {
-      setSecondsRemaining((current) => {
-        const next = Math.max(0, current - 1);
-        if (next > 0 && next <= 5) sound.playTimerWarning();
-        if (next === 0) {
-          sound.playTimerTick();
-          if (mode.hideStreetViewAfterTime) setStreetViewHidden(true);
-          window.clearInterval(interval);
-        }
-        return next;
-      });
-    }, 1000);
+      const elapsedSeconds = (performance.now() - startedAt) / 1000;
+      const remaining = Math.max(0, activeTimerSeconds - elapsedSeconds);
+      setSecondsRemaining(remaining);
+      const warningBucket = Math.ceil(remaining * 2);
+      if (remaining > 0 && remaining <= 5 && warningBucket !== lastWarningBucket) {
+        lastWarningBucket = warningBucket;
+        sound.playTimerWarning(remaining);
+      }
+      if (remaining <= 0) {
+        sound.playTimerTick();
+        if (mode.hideStreetViewAfterTime) setStreetViewHidden(true);
+        window.clearInterval(interval);
+      }
+    }, 50);
     return () => window.clearInterval(interval);
   }, [activeTimerSeconds, mode.hideStreetViewAfterTime, round.panoId]);
 
@@ -101,7 +106,7 @@ export function GameScreen({ round, modeId, viewSeconds, totalRounds, totalScore
         <span>ROUND {round.roundNumber}/{totalRounds}</span>
         <span>{zones[round.zoneId].displayName}</span>
         <span>{mode.displayName}</span>
-        {activeTimerSeconds && <span>{streetViewHidden ? "MEMORY MODE" : `${secondsRemaining}s`}</span>}
+        {activeTimerSeconds && <span>{streetViewHidden ? "MEMORY MODE" : `${formatTimer(secondsRemaining)}s`}</span>}
         <span>{totalScore} PTS</span>
       </div>
       {streetViewHidden && (
@@ -129,6 +134,10 @@ export function GameScreen({ round, modeId, viewSeconds, totalRounds, totalScore
       {DEBUG_TOOLS_ENABLED && <DebugPanel round={round} onTestGenerate={onDebugGenerate} />}
     </main>
   );
+}
+
+function formatTimer(seconds: number): string {
+  return seconds < 10 ? seconds.toFixed(1) : String(Math.ceil(seconds));
 }
 
 function attachStreetViewDebugListeners(

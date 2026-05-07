@@ -295,7 +295,8 @@ td { color: var(--text-main); }
   display: grid;
   place-items: center;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 45%, rgba(255,43,214,0.2), rgba(3,4,13,0.92) 58%);
+  background: radial-gradient(circle at 50% 45%, rgba(255,43,214,0.2), rgba(3,4,13,0.46) 62%);
+  backdrop-filter: blur(14px) saturate(1.35);
 }
 .memory-overlay > div {
   padding: 1.5rem 2rem;

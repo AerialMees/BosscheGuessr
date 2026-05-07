@@ -80,9 +80,9 @@ export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) 
               View time: {viewSeconds} seconds
               <input
                 type="range"
-                min={3}
+                min={0.1}
                 max={60}
-                step={1}
+                step={0.1}
                 value={viewSeconds}
                 onChange={(event) => setViewSeconds(clampTimedViewSeconds(Number(event.target.value)))}
               />

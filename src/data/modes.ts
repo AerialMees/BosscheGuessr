@@ -21,27 +21,6 @@ export const modes: Record<ModeId, GameMode> = {
     allowZoom: true,
     timeLimitSeconds: null,
   },
-  speedrun: {
-    id: "speedrun",
-    displayName: "Speedrun Mode",
-    description: "Five rounds with 60 seconds to submit each guess.",
-    rounds: 5,
-    allowMove: true,
-    allowPan: true,
-    allowZoom: true,
-    timeLimitSeconds: 60,
-  },
-  "bike-paths": {
-    id: "bike-paths",
-    displayName: "Only Bike Paths",
-    description: "Experimental: uses curated bike-friendly seed areas near quiet roads, dikes, and cycle routes.",
-    rounds: 5,
-    allowMove: true,
-    allowPan: true,
-    allowZoom: true,
-    timeLimitSeconds: null,
-    usesBikePathSeeds: true,
-  },
   "timed-view": {
     id: "timed-view",
     displayName: "X-Second View",
@@ -57,5 +36,5 @@ export const modes: Record<ModeId, GameMode> = {
 };
 
 export function clampTimedViewSeconds(seconds: number): number {
-  return Math.min(60, Math.max(3, Math.round(seconds)));
+  return Math.min(60, Math.max(0.1, Math.round(seconds * 10) / 10));
 }

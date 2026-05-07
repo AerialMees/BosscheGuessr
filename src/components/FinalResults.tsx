@@ -53,6 +53,5 @@ export function FinalResults({ entry, leaderboard, onPlayAgain, onLeaderboardCha
 
 function formatModeLabel(mode: keyof typeof modes, viewSeconds?: number): string {
   if (mode === "timed-view") return `X-Second View · ${viewSeconds ?? 10}s`;
-  if (mode === "bike-paths") return "Bike Paths";
   return modes[mode].displayName;
 }

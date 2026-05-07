@@ -114,6 +114,5 @@ export function Leaderboard({ entries, compact = false, onClear }: LeaderboardPr
 
 function formatModeLabel(mode: ModeId, viewSeconds?: number): string {
   if (mode === "timed-view") return `X-Second View · ${viewSeconds ?? 10}s`;
-  if (mode === "bike-paths") return "Bike Paths";
   return modes[mode].displayName;
 }

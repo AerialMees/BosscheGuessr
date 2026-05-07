@@ -1,5 +1,4 @@
 import type { GameZone, LatLngLiteral, RoundLocation } from "../types/game";
-import type { BikePathSeed } from "../data/bikePathSeeds";
 import { distanceMeters, randomPointInZone, zoneContainsPoint } from "./geo";
 import { randomHeading } from "./random";
 import { DEBUG_TOOLS_ENABLED } from "./env";
@@ -24,45 +23,6 @@ function debugStreetView(message: string, details: Record<string, unknown>): voi
   }
 }
 
-export async function findBikePathPanoramaInZone(
-  zone: GameZone,
-  seeds: BikePathSeed[],
-  options: PanoSearchOptions = {},
-): Promise<RoundLocation | null> {
-  const usedPanoIds = options.usedPanoIds ?? new Set<string>();
-  const shuffledSeeds = [...seeds].sort(() => Math.random() - 0.5);
-
-  for (const seed of shuffledSeeds) {
-    const pano = await getPanoramaNear(seed.location, options.radiusMeters ?? 125);
-    const panoId = pano?.location?.pano;
-    const actualLatLng = pano?.location?.latLng;
-    if (!pano || !panoId || !actualLatLng) {
-      debugStreetView("bike seed rejected", { seed: seed.id, reason: "no-result" });
-      continue;
-    }
-    const actualLocation = actualLatLng.toJSON();
-    if (usedPanoIds.has(panoId)) {
-      debugStreetView("bike seed rejected", { seed: seed.id, panoId, reason: "duplicate" });
-      continue;
-    }
-    if (!zoneContainsPoint(zone, actualLocation)) {
-      debugStreetView("bike seed rejected", { seed: seed.id, panoId, actualLocation, reason: "outside-polygon" });
-      continue;
-    }
-    if (distanceMeters(seed.location, actualLocation) > (options.maxReturnDistanceMeters ?? 200)) {
-      debugStreetView("bike seed rejected", { seed: seed.id, panoId, actualLocation, reason: "too-far-from-seed" });
-      continue;
-    }
-    return {
-      panoId,
-      actualLocation,
-      initialPov: { heading: randomHeading(), pitch: 0, zoom: 0 },
-    };
-  }
-
-  debugStreetView("bike seed fallback", { zone: zone.id, reason: "all-seeds-rejected" });
-  return null;
-}
 
 export async function getPanoramaNear(location: LatLngLiteral, radius: number): Promise<google.maps.StreetViewPanoramaData | null> {
   const { StreetViewService, StreetViewSource } = (await google.maps.importLibrary("streetView")) as google.maps.StreetViewLibrary;
