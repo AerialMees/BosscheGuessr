@@ -1,4 +1,5 @@
 import type { CurrentRound } from "../types/game";
+import { DEBUG_TOOLS_ENABLED } from "../lib/env";
 import { RetroButton } from "./RetroButton";
 
 interface DebugPanelProps {
@@ -7,7 +8,7 @@ interface DebugPanelProps {
 }
 
 export function DebugPanel({ round, onTestGenerate }: DebugPanelProps) {
-  if (import.meta.env.VITE_ENABLE_DEBUG_TOOLS !== "true") return null;
+  if (!DEBUG_TOOLS_ENABLED) return null;
 
   return (
     <aside className="debug-panel">

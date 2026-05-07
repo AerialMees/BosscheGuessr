@@ -19,7 +19,7 @@ export function FinalResults({ entry, leaderboard, onPlayAgain, onLeaderboardCha
       <section className="panel final-score">
         <p className="eyebrow">Game over</p>
         <h1>{entry.totalScore} / {entry.maxPossibleScore}</h1>
-        <p>{entry.percentage}% in {modes[entry.mode].displayName} · {zoneName}</p>
+        <p>{entry.percentage}% in {formatModeLabel(entry.mode, entry.viewSeconds)} · {zoneName}</p>
         <table>
           <thead>
             <tr>
@@ -49,4 +49,10 @@ export function FinalResults({ entry, leaderboard, onPlayAgain, onLeaderboardCha
       </section>
     </main>
   );
+}
+
+function formatModeLabel(mode: keyof typeof modes, viewSeconds?: number): string {
+  if (mode === "timed-view") return `X-Second View · ${viewSeconds ?? 10}s`;
+  if (mode === "bike-paths") return "Bike Paths";
+  return modes[mode].displayName;
 }

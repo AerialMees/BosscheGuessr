@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { zones } from "../data/zones";
 import { getBoundsForPolygon } from "../lib/geo";
+import { DEBUG_TOOLS_ENABLED } from "../lib/env";
 import type { ConcreteZoneId, LatLngLiteral } from "../types/game";
 import { RetroButton } from "./RetroButton";
 
@@ -22,7 +23,7 @@ export function GuessMap({ zoneId, guessLocation, actualLocation, onGuessChange,
   const zonePolygonRef = useRef<google.maps.Polygon | null>(null);
   const [expanded, setExpanded] = useState(false);
   const zone = zones[zoneId];
-  const showDebugPolygon = import.meta.env.VITE_ENABLE_DEBUG_TOOLS === "true";
+  const showDebugPolygon = DEBUG_TOOLS_ENABLED;
 
   useEffect(() => {
     if (!mapDivRef.current || mapRef.current) return;

@@ -2,7 +2,7 @@ export type LatLngLiteral = google.maps.LatLngLiteral;
 
 export type ZoneId = "empel" | "rosmalen" | "engelen" | "kerkdriel" | "den-bosch" | "mixed";
 export type ConcreteZoneId = Exclude<ZoneId, "mixed">;
-export type ModeId = "classic" | "no-move" | "speedrun";
+export type ModeId = "classic" | "no-move" | "speedrun" | "bike-paths" | "timed-view";
 export type GameStatus = "home" | "loading-round" | "playing" | "round-result" | "game-over";
 
 export interface BoundsLiteral {
@@ -28,11 +28,15 @@ export interface GameZone {
 export interface GameMode {
   id: ModeId;
   displayName: string;
+  description: string;
   rounds: number;
   allowMove: boolean;
   allowPan: boolean;
   allowZoom: boolean;
   timeLimitSeconds: number | null;
+  viewTimeLimitSeconds?: number;
+  hideStreetViewAfterTime?: boolean;
+  usesBikePathSeeds?: boolean;
 }
 
 export interface RoundLocation {
@@ -61,6 +65,7 @@ export interface GameState {
   status: GameStatus;
   selectedZoneId: ZoneId;
   selectedMode: ModeId;
+  viewSeconds: number;
   playerName: string;
   currentRoundIndex: number;
   totalRounds: number;
@@ -80,6 +85,7 @@ export interface LeaderboardEntry {
   mode: ModeId;
   zone: ZoneId;
   rounds: number;
+  viewSeconds?: number;
   dateIso: string;
   totalDistanceMeters: number;
   roundResults: RoundResult[];

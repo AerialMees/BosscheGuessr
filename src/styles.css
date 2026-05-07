@@ -1,13 +1,20 @@
 :root {
   --bg-0: #050510;
   --bg-1: #090a1a;
+  --bg-2: #10142c;
   --panel: rgba(10, 12, 32, 0.86);
+  --panel-strong: rgba(13, 18, 45, 0.94);
+  --panel-soft: rgba(255, 255, 255, 0.055);
   --panel-solid: #101225;
   --neon-blue: #00d9ff;
   --neon-orange: #ff8a00;
   --neon-magenta: #ff2bd6;
   --text-main: #f5f7ff;
   --text-muted: #aab0d6;
+  --text-dim: #68709d;
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 10px;
   --border-blue: rgba(0, 217, 255, 0.75);
   --border-magenta: rgba(255, 43, 214, 0.65);
   --border-orange: rgba(255, 138, 0, 0.65);
@@ -142,6 +149,23 @@ input:focus, select:focus { border-color: var(--neon-magenta); box-shadow: var(-
   max-width: 560px;
 }
 .setup-form label { display: grid; gap: 0.4rem; color: var(--text-muted); }
+.setup-form small { color: var(--text-dim); line-height: 1.45; }
+.sound-controls {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--panel-soft);
+  border-radius: var(--radius-sm);
+}
+.sound-toggle {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+.sound-toggle input { width: auto; }
 .retro-button {
   border: 1px solid var(--border-blue);
   background: linear-gradient(180deg, rgba(0, 217, 255, 0.12), rgba(255, 43, 214, 0.08));
@@ -264,6 +288,24 @@ td { color: var(--text-main); }
   pointer-events: none;
   background: radial-gradient(circle, rgba(5,5,16,0.12), rgba(5,5,16,0.42));
 }
+.memory-overlay {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 45%, rgba(255,43,214,0.2), rgba(3,4,13,0.92) 58%);
+}
+.memory-overlay > div {
+  padding: 1.5rem 2rem;
+  border: 1px solid var(--border-magenta);
+  background: var(--panel-strong);
+  box-shadow: var(--shadow-magenta);
+  text-align: center;
+  border-radius: var(--radius-md);
+}
+.memory-overlay h2 { margin: 0; }
 .result-panel { width: min(480px, calc(100vw - 2rem)); pointer-events: auto; }
 .big-score { color: var(--neon-orange); font-size: 2.5rem; margin: 0.5rem 0; text-shadow: 0 0 18px rgba(255,138,0,0.35); }
 .debug-panel {

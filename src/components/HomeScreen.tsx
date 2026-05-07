@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
-import { modes } from "../data/modes";
+import { clampTimedViewSeconds, modes } from "../data/modes";
 import { selectableZones } from "../data/zones";
 import { getLeaderboard } from "../lib/leaderboard";
 import type { GoogleMapsLoadError } from "../lib/googleMapsDiagnostics";
 import type { ModeId, ZoneId } from "../types/game";
+import { DEBUG_TOOLS_ENABLED } from "../lib/env";
+import { sound } from "../lib/sound";
 import { Leaderboard } from "./Leaderboard";
 import { MapsErrorPanel } from "./MapsErrorPanel";
 import { MapsSetupStatus } from "./MapsSetupStatus";
 import { RetroButton } from "./RetroButton";
 
 interface HomeScreenProps {
-  onStart: (options: { playerName: string; zoneId: ZoneId; modeId: ModeId }) => void;
+  onStart: (options: { playerName: string; zoneId: ZoneId; modeId: ModeId; viewSeconds: number }) => void;
   mapsLoaded: boolean;
   mapsError?: GoogleMapsLoadError;
 }
@@ -19,6 +21,9 @@ export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) 
   const [playerName, setPlayerName] = useState("PLAYER 1");
   const [zoneId, setZoneId] = useState<ZoneId>("empel");
   const [modeId, setModeId] = useState<ModeId>("classic");
+  const [viewSeconds, setViewSeconds] = useState(10);
+  const [soundEnabled, setSoundEnabled] = useState(sound.enabled);
+  const [soundVolume, setSoundVolume] = useState(sound.volume);
   const leaderboard = useMemo(() => getLeaderboard(), []);
   const canStart = playerName.trim().length > 0;
 
@@ -31,14 +36,18 @@ export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) 
           <p>Local Street View chaos around Den Bosch.</p>
         </div>
 
-        <MapsSetupStatus mapsLoaded={mapsLoaded} lastError={mapsError} />
+        {(mapsError || DEBUG_TOOLS_ENABLED) && <MapsSetupStatus mapsLoaded={mapsLoaded} lastError={mapsError} />}
         {mapsError && <MapsErrorPanel error={mapsError} />}
 
         <form
           className="panel setup-form"
           onSubmit={(event) => {
             event.preventDefault();
-            if (canStart) onStart({ playerName: playerName.trim(), zoneId, modeId });
+            if (canStart) {
+              void sound.unlock();
+              sound.playStartGame();
+              onStart({ playerName: playerName.trim(), zoneId, modeId, viewSeconds });
+            }
           }}
         >
           <label>
@@ -64,7 +73,50 @@ export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) 
                 </option>
               ))}
             </select>
+            <small>{modes[modeId].description}</small>
           </label>
+          {modeId === "timed-view" && (
+            <label>
+              View time: {viewSeconds} seconds
+              <input
+                type="range"
+                min={3}
+                max={60}
+                step={1}
+                value={viewSeconds}
+                onChange={(event) => setViewSeconds(clampTimedViewSeconds(Number(event.target.value)))}
+              />
+            </label>
+          )}
+          <div className="sound-controls">
+            <label className="sound-toggle">
+              <input
+                type="checkbox"
+                checked={soundEnabled}
+                onChange={(event) => {
+                  sound.setEnabled(event.target.checked);
+                  setSoundEnabled(event.target.checked);
+                  sound.playClick();
+                }}
+              />
+              Sound
+            </label>
+            <label>
+              Volume
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={soundVolume}
+                onChange={(event) => {
+                  const volume = Number(event.target.value);
+                  sound.setVolume(volume);
+                  setSoundVolume(volume);
+                }}
+              />
+            </label>
+          </div>
           <RetroButton type="submit" disabled={!canStart}>
             Start Game
           </RetroButton>

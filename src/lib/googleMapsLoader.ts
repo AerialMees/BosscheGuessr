@@ -1,5 +1,6 @@
 import { Loader } from "@googlemaps/js-api-loader";
 import { explainGoogleMapsError, GoogleMapsLoadError } from "./googleMapsDiagnostics";
+import { DEBUG_TOOLS_ENABLED } from "./env";
 
 let mapsPromise: Promise<typeof google> | null = null;
 let authFailureHandler: ((error: GoogleMapsLoadError) => void) | null = null;
@@ -93,7 +94,7 @@ function isPlaceholderKey(apiKey: string): boolean {
 }
 
 function debugMaps(message: string, details: Record<string, unknown>): void {
-  if (import.meta.env.VITE_ENABLE_DEBUG_TOOLS === "true") {
+  if (DEBUG_TOOLS_ENABLED) {
     console.debug(`[GoogleMaps] ${message}`, details);
   }
 }

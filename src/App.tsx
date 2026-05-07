@@ -6,21 +6,24 @@ import { HomeScreen } from "./components/HomeScreen";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { RoundResultOverlay } from "./components/RoundResultOverlay";
 import { modes } from "./data/modes";
+import { getBikePathSeedsForZone } from "./data/bikePathSeeds";
 import { concreteZoneIds, zones } from "./data/zones";
 import { distanceMeters } from "./lib/geo";
 import { loadGoogleMaps, setGoogleMapsAuthFailureHandler } from "./lib/googleMapsLoader";
 import { explainGoogleMapsError } from "./lib/googleMapsDiagnostics";
 import { createLeaderboardEntry, getLeaderboard, saveLeaderboardEntry } from "./lib/leaderboard";
 import { calculateScore, ratingForDistance } from "./lib/scoring";
-import { findRandomPanoramaInZone } from "./lib/streetView";
+import { findBikePathPanoramaInZone, findRandomPanoramaInZone } from "./lib/streetView";
 import { pickRandom } from "./lib/random";
 import type { ConcreteZoneId, CurrentRound, GameState, LatLngLiteral, LeaderboardEntry, ModeId, ZoneId } from "./types/game";
 import type { GoogleMapsLoadError } from "./lib/googleMapsDiagnostics";
+import { sound } from "./lib/sound";
 
 const initialState: GameState = {
   status: "home",
   selectedZoneId: "empel",
   selectedMode: "classic",
+  viewSeconds: 10,
   playerName: "PLAYER 1",
   currentRoundIndex: 0,
   totalRounds: modes.classic.rounds,
@@ -48,7 +51,11 @@ export default function App() {
         setMapsLoaded(true);
         setMapsError(undefined);
         const zoneId = selectRoundZone(state.selectedZoneId);
-        const location = await findRandomPanoramaInZone(zones[zoneId], { usedPanoIds: state.usedPanoIds });
+        const bikeLocation =
+          state.selectedMode === "bike-paths"
+            ? await findBikePathPanoramaInZone(zones[zoneId], getBikePathSeedsForZone(zoneId), { usedPanoIds: state.usedPanoIds })
+            : null;
+        const location = bikeLocation ?? (await findRandomPanoramaInZone(zones[zoneId], { usedPanoIds: state.usedPanoIds }));
         const currentRound: CurrentRound = {
           ...location,
           roundNumber: state.currentRoundIndex + 1,
@@ -60,6 +67,7 @@ export default function App() {
           currentRound,
           usedPanoIds: new Set([...current.usedPanoIds, location.panoId]),
         }));
+        sound.playRoundStart();
       } catch (error) {
         const mappedError = explainGoogleMapsError(error);
         setMapsError(mappedError);
@@ -73,7 +81,7 @@ export default function App() {
     [selectRoundZone],
   );
 
-  function startGame(options: { playerName: string; zoneId: ZoneId; modeId: ModeId }) {
+  function startGame(options: { playerName: string; zoneId: ZoneId; modeId: ModeId; viewSeconds: number }) {
     const mode = modes[options.modeId];
     const nextState: GameState = {
       ...initialState,
@@ -81,6 +89,7 @@ export default function App() {
       playerName: options.playerName,
       selectedZoneId: options.zoneId,
       selectedMode: options.modeId,
+      viewSeconds: options.viewSeconds,
       totalRounds: mode.rounds,
       usedPanoIds: new Set<string>(),
     };
@@ -116,6 +125,10 @@ export default function App() {
         },
       ],
     }));
+    sound.playSubmitGuess();
+    if (distance <= 25) sound.playPerfectScore();
+    else if (score > 3500) sound.playGoodScore();
+    else if (score < 1000) sound.playBadScore();
   }
 
   function nextRound() {
@@ -127,12 +140,14 @@ export default function App() {
         mode: game.selectedMode,
         zone: game.selectedZoneId,
         rounds: game.totalRounds,
+        viewSeconds: game.selectedMode === "timed-view" ? game.viewSeconds : undefined,
         roundResults: game.roundResults,
       });
       const entries = saveLeaderboardEntry(entry);
       setLeaderboard(entries);
       setFinalEntry(entry);
       setGame((current) => ({ ...current, status: "game-over" }));
+      sound.playGameOver();
       return;
     }
 
@@ -171,6 +186,7 @@ export default function App() {
       <GameScreen
         round={game.currentRound}
         modeId={game.selectedMode}
+        viewSeconds={game.viewSeconds}
         totalRounds={game.totalRounds}
         totalScore={game.totalScore}
         onSubmitGuess={submitGuess}

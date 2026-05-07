@@ -1,5 +1,6 @@
 import { hasGoogleMapsApiKey } from "../lib/googleMapsLoader";
 import type { GoogleMapsLoadError } from "../lib/googleMapsDiagnostics";
+import { DEBUG_TOOLS_ENABLED } from "../lib/env";
 
 interface MapsSetupStatusProps {
   mapsLoaded: boolean;
@@ -7,7 +8,7 @@ interface MapsSetupStatusProps {
 }
 
 export function MapsSetupStatus({ mapsLoaded, lastError }: MapsSetupStatusProps) {
-  const showDetails = Boolean(lastError) || import.meta.env.VITE_ENABLE_DEBUG_TOOLS === "true";
+  const showDetails = Boolean(lastError) || DEBUG_TOOLS_ENABLED;
   const isDevServer = window.location.protocol === "http:" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
   return (

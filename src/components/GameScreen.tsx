@@ -5,10 +5,13 @@ import type { CurrentRound, LatLngLiteral, ModeId } from "../types/game";
 import { DebugPanel } from "./DebugPanel";
 import { GuessMap } from "./GuessMap";
 import { RetroButton } from "./RetroButton";
+import { sound } from "../lib/sound";
+import { DEBUG_TOOLS_ENABLED } from "../lib/env";
 
 interface GameScreenProps {
   round: CurrentRound;
   modeId: ModeId;
+  viewSeconds: number;
   totalRounds: number;
   totalScore: number;
   onSubmitGuess: (guess: LatLngLiteral) => void;
@@ -16,13 +19,16 @@ interface GameScreenProps {
   onDebugGenerate: () => void;
 }
 
-export function GameScreen({ round, modeId, totalRounds, totalScore, onSubmitGuess, onResetView, onDebugGenerate }: GameScreenProps) {
+export function GameScreen({ round, modeId, viewSeconds, totalRounds, totalScore, onSubmitGuess, onResetView, onDebugGenerate }: GameScreenProps) {
   const panoDivRef = useRef<HTMLDivElement | null>(null);
   const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
   const listenersRef = useRef<google.maps.MapsEventListener[]>([]);
   const [containerWarning, setContainerWarning] = useState<string | undefined>();
   const [guessLocation, setGuessLocation] = useState<LatLngLiteral | undefined>(round.guessLocation);
+  const [secondsRemaining, setSecondsRemaining] = useState(viewSeconds);
+  const [streetViewHidden, setStreetViewHidden] = useState(false);
   const mode = modes[modeId];
+  const activeTimerSeconds = mode.hideStreetViewAfterTime ? viewSeconds : mode.timeLimitSeconds;
 
   useEffect(() => {
     const panoDiv = panoDivRef.current;
@@ -56,8 +62,29 @@ export function GameScreen({ round, modeId, totalRounds, totalScore, onSubmitGue
     google.maps.event.trigger(panoramaRef.current, "resize");
     checkStreetViewContainer(panoDiv, setContainerWarning);
     setGuessLocation(undefined);
+    setStreetViewHidden(false);
+    setSecondsRemaining(activeTimerSeconds ?? viewSeconds);
 
-  }, [mode.allowMove, mode.allowPan, mode.allowZoom, round.initialPov, round.panoId]);
+  }, [activeTimerSeconds, mode.allowMove, mode.allowPan, mode.allowZoom, round.initialPov, round.panoId, viewSeconds]);
+
+  useEffect(() => {
+    if (!activeTimerSeconds) return;
+    setSecondsRemaining(activeTimerSeconds);
+    setStreetViewHidden(false);
+    const interval = window.setInterval(() => {
+      setSecondsRemaining((current) => {
+        const next = Math.max(0, current - 1);
+        if (next > 0 && next <= 5) sound.playTimerWarning();
+        if (next === 0) {
+          sound.playTimerTick();
+          if (mode.hideStreetViewAfterTime) setStreetViewHidden(true);
+          window.clearInterval(interval);
+        }
+        return next;
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [activeTimerSeconds, mode.hideStreetViewAfterTime, round.panoId]);
 
   useEffect(() => {
     return () => {
@@ -73,8 +100,18 @@ export function GameScreen({ round, modeId, totalRounds, totalScore, onSubmitGue
       <div className="hud">
         <span>ROUND {round.roundNumber}/{totalRounds}</span>
         <span>{zones[round.zoneId].displayName}</span>
+        <span>{mode.displayName}</span>
+        {activeTimerSeconds && <span>{streetViewHidden ? "MEMORY MODE" : `${secondsRemaining}s`}</span>}
         <span>{totalScore} PTS</span>
       </div>
+      {streetViewHidden && (
+        <div className="memory-overlay">
+          <div>
+            <p className="eyebrow">Time's up</p>
+            <h2>Make your guess from memory</h2>
+          </div>
+        </div>
+      )}
       <div className="game-actions">
         <RetroButton type="button" tone="secondary" onClick={onResetView}>
           Reset View
@@ -83,10 +120,13 @@ export function GameScreen({ round, modeId, totalRounds, totalScore, onSubmitGue
       <GuessMap
         zoneId={round.zoneId}
         guessLocation={guessLocation}
-        onGuessChange={setGuessLocation}
+        onGuessChange={(location) => {
+          setGuessLocation(location);
+          sound.playGuessPlaced();
+        }}
         onSubmit={() => guessLocation && onSubmitGuess(guessLocation)}
       />
-      <DebugPanel round={round} onTestGenerate={onDebugGenerate} />
+      {DEBUG_TOOLS_ENABLED && <DebugPanel round={round} onTestGenerate={onDebugGenerate} />}
     </main>
   );
 }
@@ -97,7 +137,7 @@ function attachStreetViewDebugListeners(
   listeners: google.maps.MapsEventListener[],
   setContainerWarning: (warning: string | undefined) => void,
 ): void {
-  const debug = import.meta.env.VITE_ENABLE_DEBUG_TOOLS === "true";
+  const debug = DEBUG_TOOLS_ENABLED;
   const log = (eventName: string) => {
     checkStreetViewContainer(container, setContainerWarning);
     if (!debug) return;

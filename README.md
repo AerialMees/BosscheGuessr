@@ -17,12 +17,13 @@ Street View is shown only through the official Google Maps JavaScript API, with 
 
 - Choose Empel, Rosmalen, Engelen, Kerkdriel, Den Bosch, or Mixed Local Mode.
 - Play 5-round local guessing games.
-- Classic, No Move, and Speedrun mode configuration.
+- Classic, No Move, Speedrun, Only Bike Paths, and X-Second View modes.
 - Random Street View panorama generation inside manually configured town bounds.
 - Guessing map with click-to-place marker.
 - Distance and score calculation up to 5000 points per round.
 - Actual vs guessed map result with line.
 - Retro arcade leaderboard saved in `localStorage`.
+- Tasteful local Web Audio arcade sounds with a toggle and volume control.
 - Debug tools behind `VITE_ENABLE_DEBUG_TOOLS=true`.
 
 ## Setup
@@ -222,6 +223,18 @@ Den Bosch uses a broader urban gameplay polygon and has a wider scoring scale th
 
 When `VITE_ENABLE_DEBUG_TOOLS=true`, the guessing map draws the selected gameplay polygon with a visible outline and this note: "Showing gameplay polygon, not official boundary."
 
+## Available modes
+
+- Classic Local: five relaxed rounds with movement allowed.
+- No Move Mode: movement limited, with pan and zoom still available.
+- Speedrun Mode: configured for fast 60-second rounds.
+- Only Bike Paths: experimental mode that uses curated seed points near bike-friendly areas, quiet roads, dikes, and green routes. It is not guaranteed to land on official bike paths.
+- X-Second View: choose 3-60 seconds to inspect Street View, then the panorama is covered and you guess from memory.
+
+## Sound effects
+
+Sound effects are generated locally with the Web Audio API. There are no external audio assets and no copyrighted sound files. Sounds start only after user interaction, can be toggled from the home screen, and use a localStorage volume setting.
+
 ## Troubleshooting inverted Street View colors
 
 Google Maps and Street View containers must not have CSS `filter`, `mix-blend-mode`, opacity tricks, or inverted CRT effects applied to them or their parents. Retro styling should stay on HUDs, panels, buttons, and leaderboard UI.
@@ -258,6 +271,8 @@ VITE_ENABLE_DEBUG_TOOLS=true
 
 This shows pano id, actual lat/lng, current zone, copy JSON, and a test generation button.
 
+Debug tools are hidden by default. Set `VITE_ENABLE_DEBUG_TOOLS=true` in `.env` and restart Vite to show diagnostics, polygon overlays, pano IDs, and seed rejection logs.
+
 Manual boundary and color checklist:
 
 1. Start game in Empel.
@@ -267,14 +282,17 @@ Manual boundary and color checklist:
 5. Confirm locations stay roughly inside their towns.
 6. Confirm Street View colors are normal.
 7. Confirm guessing map colors are normal.
-8. Confirm leaderboard still works.
-9. Confirm no `.env` or API key is committed.
+8. Confirm Only Bike Paths starts rounds.
+9. Confirm X-Second View hides Street View after the chosen time and guessing still works.
+10. Confirm sound toggle and volume work after user interaction.
+11. Confirm leaderboard still works.
+12. Confirm no `.env` or API key is committed.
 
 ## Known limitations
 
 - Town boundaries are approximate gameplay polygons.
 - Random generation can fail if a zone has sparse Street View coverage or bounds are too tight.
-- Speedrun timer config exists, but the visible timer is not implemented yet.
+- Only Bike Paths uses approximate curated seeds and may fall back to normal random generation.
 - No Move mode disables click-to-go and links controls, but Google UI behavior can vary.
 - No multiplayer or shareable challenge seed yet.
 

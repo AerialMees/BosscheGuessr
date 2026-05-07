@@ -86,7 +86,7 @@ export function Leaderboard({ entries, compact = false, onClear }: LeaderboardPr
               <td>{index + 1}</td>
               <td>{entry.playerName}</td>
               <td>{entry.totalScore}</td>
-              <td>{modes[entry.mode].displayName}</td>
+              <td>{formatModeLabel(entry.mode, entry.viewSeconds)}</td>
               <td>{entry.zone === "mixed" ? "Mixed" : zones[entry.zone].displayName}</td>
             </tr>
           ))}
@@ -110,4 +110,10 @@ export function Leaderboard({ entries, compact = false, onClear }: LeaderboardPr
       )}
     </section>
   );
+}
+
+function formatModeLabel(mode: ModeId, viewSeconds?: number): string {
+  if (mode === "timed-view") return `X-Second View · ${viewSeconds ?? 10}s`;
+  if (mode === "bike-paths") return "Bike Paths";
+  return modes[mode].displayName;
 }
