@@ -1,7 +1,7 @@
 export const MAX_ROUND_SCORE = 5000;
 
-export function calculateScore(distanceMeters: number, mixedMode = false): number {
-  const scale = mixedMode ? 800 : 400;
+export function calculateScore(distanceMeters: number, mixedModeOrScale: boolean | number = false): number {
+  const scale = typeof mixedModeOrScale === "number" ? mixedModeOrScale : mixedModeOrScale ? 1000 : 400;
   const score = Math.round(MAX_ROUND_SCORE * Math.exp(-Math.max(0, distanceMeters) / scale));
   return Math.min(MAX_ROUND_SCORE, Math.max(0, score));
 }

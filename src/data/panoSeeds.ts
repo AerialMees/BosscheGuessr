@@ -13,4 +13,5 @@ export const panoSeeds: Record<ConcreteZoneId, PanoSeed[]> = {
   empel: [],
   rosmalen: [],
   kerkdriel: [],
+  "den-bosch": [],
 };

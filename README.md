@@ -2,7 +2,7 @@
 
 ## What this is
 
-BoschGuessr is a local-first browser game inspired by the fun of location guessing. It uses the official Google Maps JavaScript API and Street View panorama viewer to create a private challenge for friends around Empel, Rosmalen, Engelen, and Kerkdriel.
+BoschGuessr is a local-first browser game inspired by the fun of location guessing. It uses the official Google Maps JavaScript API and Street View panorama viewer to create a private challenge for friends around Empel, Rosmalen, Engelen, Kerkdriel, and Den Bosch.
 
 ## What this is not
 
@@ -15,7 +15,7 @@ Street View is shown only through the official Google Maps JavaScript API, with 
 
 ## Features
 
-- Choose Empel, Rosmalen, Engelen, Kerkdriel, or Mixed Local Mode.
+- Choose Empel, Rosmalen, Engelen, Kerkdriel, Den Bosch, or Mixed Local Mode.
 - Play 5-round local guessing games.
 - Classic, No Move, and Speedrun mode configuration.
 - Random Street View panorama generation inside manually configured town bounds.
@@ -187,6 +187,14 @@ npm run build
 
 Town zones live in `src/data/zones.ts`.
 
+Available maps:
+
+- Engelen
+- Empel
+- Rosmalen
+- Kerkdriel
+- Den Bosch
+
 Each zone has:
 
 - `id`
@@ -209,6 +217,8 @@ polygon: [
 Bounds are computed from the polygon with `getBoundsForPolygon`, then used for random candidate generation and debug fitting. To tune an area, move polygon vertices in `src/data/zones.ts`, run the game, and test generation.
 
 Empel intentionally uses a tighter polygon than the first MVP so it stays around the built-up village. `src/data/zones.ts` also exports `empelCorePolygon` and a hidden `empel-core` testing zone if you want an even stricter test area later.
+
+Den Bosch uses a broader urban gameplay polygon and has a wider scoring scale than the smaller village maps.
 
 When `VITE_ENABLE_DEBUG_TOOLS=true`, the guessing map draws the selected gameplay polygon with a visible outline and this note: "Showing gameplay polygon, not official boundary."
 
@@ -253,7 +263,7 @@ Manual boundary and color checklist:
 1. Start game in Empel.
 2. Generate at least 10 Empel rounds.
 3. Confirm locations stay inside the intended Empel village game area.
-4. Start Rosmalen, Engelen, and Kerkdriel.
+4. Start Rosmalen, Engelen, Kerkdriel, and Den Bosch.
 5. Confirm locations stay roughly inside their towns.
 6. Confirm Street View colors are normal.
 7. Confirm guessing map colors are normal.

@@ -13,6 +13,10 @@ describe("calculateScore", () => {
   it("uses a gentler mixed-mode scale", () => {
     expect(calculateScore(500, true)).toBeGreaterThan(calculateScore(500, false));
   });
+
+  it("accepts explicit larger zone scoring scales", () => {
+    expect(calculateScore(500, 1000)).toBeGreaterThan(calculateScore(500, 400));
+  });
 });
 
 describe("ratingForDistance", () => {

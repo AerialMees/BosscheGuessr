@@ -1,6 +1,6 @@
 export type LatLngLiteral = google.maps.LatLngLiteral;
 
-export type ZoneId = "empel" | "rosmalen" | "engelen" | "kerkdriel" | "mixed";
+export type ZoneId = "empel" | "rosmalen" | "engelen" | "kerkdriel" | "den-bosch" | "mixed";
 export type ConcreteZoneId = Exclude<ZoneId, "mixed">;
 export type ModeId = "classic" | "no-move" | "speedrun";
 export type GameStatus = "home" | "loading-round" | "playing" | "round-result" | "game-over";
@@ -20,6 +20,7 @@ export interface GameZone {
   polygon: LatLngLiteral[];
   defaultZoom: number;
   difficultyLabel: string;
+  scoringScaleMeters?: number;
   notes?: string;
   gameplayBoundaryDisclaimer?: string;
 }

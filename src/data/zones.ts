@@ -57,6 +57,18 @@ const kerkdrielPolygon = [
   { lat: 51.7766, lng: 5.3138 },
 ];
 
+const denBoschPolygon = [
+  { lat: 51.7248, lng: 5.2602 },
+  { lat: 51.7241, lng: 5.3235 },
+  { lat: 51.7129, lng: 5.3524 },
+  { lat: 51.6925, lng: 5.3621 },
+  { lat: 51.6711, lng: 5.3453 },
+  { lat: 51.6608, lng: 5.3136 },
+  { lat: 51.6635, lng: 5.2765 },
+  { lat: 51.681, lng: 5.2492 },
+  { lat: 51.7057, lng: 5.2466 },
+];
+
 // These are approximate gameplay polygons, not official borders.
 // TODO: Adjust these bounds manually after testing.
 export const zones: Record<ConcreteZoneId, GameZone> = {
@@ -104,6 +116,18 @@ export const zones: Record<ConcreteZoneId, GameZone> = {
     notes: "Village and nearby residential roads, avoiding excessive waterfront/outskirt drift.",
     gameplayBoundaryDisclaimer,
   },
+  "den-bosch": {
+    id: "den-bosch",
+    displayName: "Den Bosch",
+    center: { lat: 51.6978, lng: 5.3037 },
+    polygon: denBoschPolygon,
+    bounds: getBoundsForPolygon(denBoschPolygon),
+    defaultZoom: 13,
+    difficultyLabel: "Urban arcade sprawl",
+    scoringScaleMeters: 1000,
+    notes: "Approximate gameplay polygon for the main urban area of Den Bosch; not an official boundary.",
+    gameplayBoundaryDisclaimer,
+  },
 };
 
 export const testingZones = {
@@ -125,6 +149,7 @@ export const selectableZones: Array<{ id: ZoneId; displayName: string }> = [
   { id: "rosmalen", displayName: "Rosmalen" },
   { id: "engelen", displayName: "Engelen" },
   { id: "kerkdriel", displayName: "Kerkdriel" },
+  { id: "den-bosch", displayName: "Den Bosch" },
   { id: "mixed", displayName: "Mixed Local Mode" },
 ];
 

@@ -1,5 +1,5 @@
 import { modes } from "../data/modes";
-import { selectableZones } from "../data/zones";
+import { selectableZones, zones } from "../data/zones";
 import { formatDistance } from "../lib/geo";
 import type { LeaderboardEntry } from "../types/game";
 import { Leaderboard } from "./Leaderboard";
@@ -33,7 +33,7 @@ export function FinalResults({ entry, leaderboard, onPlayAgain, onLeaderboardCha
             {entry.roundResults.map((round) => (
               <tr key={round.roundNumber}>
                 <td>{round.roundNumber}</td>
-                <td>{round.zoneId}</td>
+                <td>{zones[round.zoneId].displayName}</td>
                 <td>{formatDistance(round.distanceMeters)}</td>
                 <td>{round.score}</td>
               </tr>

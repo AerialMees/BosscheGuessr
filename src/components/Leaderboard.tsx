@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { modes } from "../data/modes";
-import { selectableZones } from "../data/zones";
+import { selectableZones, zones } from "../data/zones";
 import { clearLeaderboard, getLeaderboard } from "../lib/leaderboard";
 import type { LeaderboardEntry, ModeId, ZoneId } from "../types/game";
 import { RetroButton } from "./RetroButton";
@@ -87,7 +87,7 @@ export function Leaderboard({ entries, compact = false, onClear }: LeaderboardPr
               <td>{entry.playerName}</td>
               <td>{entry.totalScore}</td>
               <td>{modes[entry.mode].displayName}</td>
-              <td>{entry.zone === "mixed" ? "Mixed" : entry.zone}</td>
+              <td>{entry.zone === "mixed" ? "Mixed" : zones[entry.zone].displayName}</td>
             </tr>
           ))}
           {filtered.length === 0 && (

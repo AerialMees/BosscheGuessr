@@ -92,7 +92,8 @@ export default function App() {
   function submitGuess(guessLocation: LatLngLiteral) {
     if (!game.currentRound) return;
     const distance = distanceMeters(guessLocation, game.currentRound.actualLocation);
-    const score = calculateScore(distance, game.selectedZoneId === "mixed");
+    const scoringScaleMeters = game.selectedZoneId === "mixed" ? 1000 : zones[game.currentRound.zoneId].scoringScaleMeters;
+    const score = calculateScore(distance, scoringScaleMeters ?? false);
     const completedRound: CurrentRound = {
       ...game.currentRound,
       guessLocation,
