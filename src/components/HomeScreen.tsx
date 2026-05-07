@@ -15,9 +15,10 @@ interface HomeScreenProps {
   onStart: (options: { playerName: string; zoneId: ZoneId; modeId: ModeId; viewSeconds: number }) => void;
   mapsLoaded: boolean;
   mapsError?: GoogleMapsLoadError;
+  onBackToMenu?: () => void;
 }
 
-export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) {
+export function HomeScreen({ onStart, mapsLoaded, mapsError, onBackToMenu }: HomeScreenProps) {
   const [playerName, setPlayerName] = useState("PLAYER 1");
   const [zoneId, setZoneId] = useState<ZoneId>("empel");
   const [modeId, setModeId] = useState<ModeId>("classic");
@@ -32,6 +33,11 @@ export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) 
           <p className="eyebrow">Private local Street View challenge</p>
           <h1>BOSSCHE GUESSR</h1>
           <p>Local Street View chaos around Den Bosch.</p>
+          {onBackToMenu && (
+            <RetroButton type="button" tone="secondary" onClick={onBackToMenu}>
+              Mode Menu
+            </RetroButton>
+          )}
         </div>
 
         {(mapsError || DEBUG_TOOLS_ENABLED) && <MapsSetupStatus mapsLoaded={mapsLoaded} lastError={mapsError} />}

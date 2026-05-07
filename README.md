@@ -24,6 +24,8 @@ Street View is shown only through the official Google Maps JavaScript API, with 
 - Actual vs guessed map result with line.
 - Retro arcade leaderboard saved in `localStorage`.
 - Tasteful local Web Audio arcade sounds with a toggle and volume control.
+- LAN multiplayer lobbies for same-Wi-Fi party games.
+- Shared multiplayer rounds, editable round counts, timers, player status, and competition leaderboards.
 - Debug tools behind `VITE_ENABLE_DEBUG_TOOLS=true`.
 
 ## Setup
@@ -46,6 +48,14 @@ VITE_GOOGLE_MAPS_API_KEY=your_real_key
 ```
 
 Never commit `.env` or API keys. This repo includes `.env.example` only.
+
+For LAN multiplayer, friends load the app through your Mac's local IP instead of `localhost`. If Maps works on the host Mac but fails on phones, add the exact LAN referrer shown by the lobby, for example:
+
+```text
+http://192.168.1.42:5173/*
+```
+
+If Vite picks a different port, add that exact port too. Do not leave an unrestricted key around permanently; only loosen restrictions temporarily while diagnosing.
 
 ## Fixing: This page can't load Google Maps correctly
 
@@ -176,7 +186,92 @@ Temporarily remove API key restrictions to test. If it works, the issue is proba
 npm run dev
 ```
 
-Open the localhost URL printed by Vite.
+This starts both:
+
+- Vite client on `0.0.0.0:5173`
+- BosscheGuessr multiplayer server on `0.0.0.0:3001`
+
+Open the localhost URL printed by Vite on the host Mac.
+
+## Hosting a LAN multiplayer game from your Mac
+
+1. Connect the Mac and all players' phones/laptops to the same Wi-Fi.
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Create `.env`:
+
+```bash
+VITE_GOOGLE_MAPS_API_KEY=your_key_here
+VITE_ENABLE_DEBUG_TOOLS=false
+```
+
+4. Run:
+
+```bash
+npm run dev
+```
+
+5. Open the local Vite URL on the Mac.
+6. Click **Host Multiplayer**.
+7. Copy the LAN join link, for example `http://192.168.x.x:5173/?lobby=ABCD`.
+8. Friends open that link on the same Wi-Fi, enter a name, and join the lobby.
+
+The lobby also calls `/api/network-info` on the local server to show available LAN URLs. If multiple network adapters are active, it may show more than one address.
+
+Same Mac joining:
+
+```text
+http://localhost:5173/?lobby=ABCD
+```
+
+Phone/laptop joining:
+
+```text
+http://192.168.x.x:5173/?lobby=ABCD
+```
+
+If it does not load:
+
+- Confirm everyone is on the same Wi-Fi.
+- Allow Node, Terminal, or the dev server through the macOS firewall if prompted.
+- Confirm Vite is running with `--host 0.0.0.0` through `npm run dev`.
+- Add the LAN IP referrer to the Google Maps API key restrictions.
+- If the Vite port changes, update the Google referrer too.
+
+Finding your Mac's IP manually:
+
+- System Settings > Wi-Fi > Details.
+- Or terminal:
+
+```bash
+ipconfig getifaddr en0
+```
+
+## Multiplayer architecture
+
+BosscheGuessr now runs as a Vite React client plus a small Express/Socket.IO server. Lobbies live in memory and are meant for local party sessions, not public internet hosting.
+
+The server manages:
+
+- lobby codes and player connection state
+- host-only settings edits
+- authoritative scoring and leaderboard sorting
+- round timers and round progression
+
+The host browser generates Street View rounds with the existing Google `StreetViewService`, then sends only the prepared round metadata to the server. During an active round, normal clients receive the shared `panoId`, zone, and initial POV, but not the actual location. Actual locations are revealed only on results.
+
+Available multiplayer settings:
+
+- map: Den Bosch, Engelen, Empel, Rosmalen, Kerkdriel, or Mixed
+- mode: the currently available BosscheGuessr modes
+- rounds: 1-20
+- optional round timer
+- X-Second View time when that mode is selected
+- movement allowed toggle where the selected mode supports it
 
 To create a production build:
 
@@ -290,11 +385,14 @@ Manual boundary and color checklist:
 - Town boundaries are approximate gameplay polygons.
 - Random generation can fail if a zone has sparse Street View coverage or bounds are too tight.
 - No Move mode disables click-to-go and links controls, but Google UI behavior can vary.
-- No multiplayer or shareable challenge seed yet.
+- Multiplayer lobbies are in-memory LAN sessions. Restarting the server clears them.
+- The host is trusted to prepare rounds in this private MVP.
+- No shareable challenge seed yet.
 
 ## Future ideas
 
 - Multiplayer hot-seat mode.
+- Public internet hosting mode.
 - Shareable challenge seed.
 - Daily local challenge.
 - Custom town editor.
