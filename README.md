@@ -50,6 +50,61 @@ Never commit `.env` or API keys. This repo includes `.env.example` only.
 
 That Google overlay usually means the Maps JavaScript API loaded but Google rejected the key, project, billing state, quota, or current URL. The app now shows a local diagnostics panel with the detected issue, current origin, expected localhost referrers, and a checklist.
 
+## Fixing Google Maps billing / development watermark
+
+If you see any of these:
+
+- "This page can't load Google Maps correctly"
+- "For development purposes only"
+- darkened maps
+- negative or inverted Street View
+- Street View going black after briefly loading
+
+Do not hide the watermark or Google attribution with CSS. It usually means Google is rejecting the Maps JavaScript API request or the Street View renderer is being visually broken by CSS/layout. Check the browser console first for the exact error code.
+
+1. Same project check
+   The API key must belong to the same Google Cloud project where Maps JavaScript API is enabled.
+
+2. Billing account check
+   Google Cloud free trial credit is not enough unless the project is actually linked to an active billing account.
+
+3. API enabled check
+   Enable Maps JavaScript API.
+
+4. API restrictions check
+   The key must be allowed to use Maps JavaScript API.
+
+5. HTTP referrer check
+   For local Vite, add:
+
+```text
+http://localhost:5173/*
+http://127.0.0.1:5173/*
+```
+
+If Vite uses another port, add that port too.
+
+6. `.env` check
+
+```bash
+VITE_GOOGLE_MAPS_API_KEY=your_real_key
+```
+
+7. Restart Vite
+
+```bash
+npm run dev
+```
+
+8. Try temporarily removing restrictions
+   For testing only, temporarily set API key application restrictions to "None" and API restrictions to unrestricted, then reload the app. If it works, the issue is restrictions/referrer. Re-enable restrictions correctly afterward.
+
+9. Check quota
+   Make sure Maps JavaScript API quota is not set to 0.
+
+10. Do not use `file://`
+    Always run through `npm run dev`.
+
 ### A. Check browser console
 
 Open DevTools > Console and look for the exact Google Maps error code:

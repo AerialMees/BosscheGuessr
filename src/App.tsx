@@ -9,13 +9,13 @@ import { modes } from "./data/modes";
 import { concreteZoneIds, zones } from "./data/zones";
 import { distanceMeters } from "./lib/geo";
 import { loadGoogleMaps, setGoogleMapsAuthFailureHandler } from "./lib/googleMapsLoader";
-import { explainGoogleMapsError } from "./lib/googleMapsErrors";
+import { explainGoogleMapsError } from "./lib/googleMapsDiagnostics";
 import { createLeaderboardEntry, getLeaderboard, saveLeaderboardEntry } from "./lib/leaderboard";
 import { calculateScore, ratingForDistance } from "./lib/scoring";
 import { findRandomPanoramaInZone } from "./lib/streetView";
 import { pickRandom } from "./lib/random";
 import type { ConcreteZoneId, CurrentRound, GameState, LatLngLiteral, LeaderboardEntry, ModeId, ZoneId } from "./types/game";
-import type { GoogleMapsLoadError } from "./lib/googleMapsErrors";
+import type { GoogleMapsLoadError } from "./lib/googleMapsDiagnostics";
 
 const initialState: GameState = {
   status: "home",

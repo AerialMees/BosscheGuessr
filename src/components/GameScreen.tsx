@@ -19,15 +19,19 @@ interface GameScreenProps {
 export function GameScreen({ round, modeId, totalRounds, totalScore, onSubmitGuess, onResetView, onDebugGenerate }: GameScreenProps) {
   const panoDivRef = useRef<HTMLDivElement | null>(null);
   const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
+  const listenersRef = useRef<google.maps.MapsEventListener[]>([]);
+  const [containerWarning, setContainerWarning] = useState<string | undefined>();
   const [guessLocation, setGuessLocation] = useState<LatLngLiteral | undefined>(round.guessLocation);
   const mode = modes[modeId];
 
   useEffect(() => {
-    if (!panoDivRef.current) return;
+    const panoDiv = panoDivRef.current;
+    if (!panoDiv) return;
     const options: google.maps.StreetViewPanoramaOptions = {
       pano: round.panoId,
       pov: round.initialPov,
       zoom: round.initialPov.zoom,
+      visible: true,
       addressControl: false,
       showRoadLabels: false,
       linksControl: mode.allowMove,
@@ -40,19 +44,32 @@ export function GameScreen({ round, modeId, totalRounds, totalScore, onSubmitGue
     };
 
     if (!panoramaRef.current) {
-      panoramaRef.current = new google.maps.StreetViewPanorama(panoDivRef.current, options);
-    } else {
-      panoramaRef.current.setOptions(options);
-      panoramaRef.current.setPano(round.panoId);
-      panoramaRef.current.setPov(round.initialPov);
-      panoramaRef.current.setZoom(round.initialPov.zoom);
+      panoramaRef.current = new google.maps.StreetViewPanorama(panoDiv, options);
+      attachStreetViewDebugListeners(panoramaRef.current, panoDiv, listenersRef.current, setContainerWarning);
     }
+
+    panoramaRef.current.setOptions(options);
+    panoramaRef.current.setPano(round.panoId);
+    panoramaRef.current.setPov(round.initialPov);
+    panoramaRef.current.setZoom(round.initialPov.zoom);
+    panoramaRef.current.setVisible(true);
+    google.maps.event.trigger(panoramaRef.current, "resize");
+    checkStreetViewContainer(panoDiv, setContainerWarning);
     setGuessLocation(undefined);
+
   }, [mode.allowMove, mode.allowPan, mode.allowZoom, round.initialPov, round.panoId]);
+
+  useEffect(() => {
+    return () => {
+      listenersRef.current.forEach((listener) => listener.remove());
+      listenersRef.current = [];
+    };
+  }, []);
 
   return (
     <main className="game-screen">
       <div ref={panoDivRef} className="street-view street-view-container" />
+      {containerWarning && <div className="street-view-warning">{containerWarning}</div>}
       <div className="hud">
         <span>ROUND {round.roundNumber}/{totalRounds}</span>
         <span>{zones[round.zoneId].displayName}</span>
@@ -72,4 +89,39 @@ export function GameScreen({ round, modeId, totalRounds, totalScore, onSubmitGue
       <DebugPanel round={round} onTestGenerate={onDebugGenerate} />
     </main>
   );
+}
+
+function attachStreetViewDebugListeners(
+  panorama: google.maps.StreetViewPanorama,
+  container: HTMLDivElement,
+  listeners: google.maps.MapsEventListener[],
+  setContainerWarning: (warning: string | undefined) => void,
+): void {
+  const debug = import.meta.env.VITE_ENABLE_DEBUG_TOOLS === "true";
+  const log = (eventName: string) => {
+    checkStreetViewContainer(container, setContainerWarning);
+    if (!debug) return;
+    console.debug(`[StreetViewPanorama] ${eventName}`, {
+      panoId: panorama.getPano(),
+      position: panorama.getPosition()?.toJSON(),
+      visible: panorama.getVisible(),
+      status: panorama.getStatus(),
+      containerWidth: container.clientWidth,
+      containerHeight: container.clientHeight,
+    });
+  };
+
+  listeners.push(
+    panorama.addListener("status_changed", () => log("status_changed")),
+    panorama.addListener("pano_changed", () => log("pano_changed")),
+    panorama.addListener("position_changed", () => log("position_changed")),
+    panorama.addListener("visible_changed", () => log("visible_changed")),
+  );
+
+  window.setTimeout(() => log("post-load-health-check"), 2200);
+}
+
+function checkStreetViewContainer(container: HTMLDivElement, setContainerWarning: (warning: string | undefined) => void): void {
+  const collapsed = container.clientWidth === 0 || container.clientHeight === 0;
+  setContainerWarning(collapsed ? "Street View container collapsed - check CSS layout." : undefined);
 }

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { modes } from "../data/modes";
 import { selectableZones } from "../data/zones";
 import { getLeaderboard } from "../lib/leaderboard";
-import type { GoogleMapsLoadError } from "../lib/googleMapsErrors";
+import type { GoogleMapsLoadError } from "../lib/googleMapsDiagnostics";
 import type { ModeId, ZoneId } from "../types/game";
 import { Leaderboard } from "./Leaderboard";
 import { MapsErrorPanel } from "./MapsErrorPanel";
@@ -27,8 +27,8 @@ export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) 
       <section className="home-main">
         <div className="title-block">
           <p className="eyebrow">Private local Street View challenge</p>
-          <h1>BoschGuessr</h1>
-          <p>Retro guessing around Empel, Rosmalen, Engelen, and Kerkdriel.</p>
+          <h1>BOSSCHE GUESSR</h1>
+          <p>Local Street View chaos around Den Bosch.</p>
         </div>
 
         <MapsSetupStatus mapsLoaded={mapsLoaded} lastError={mapsError} />

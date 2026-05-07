@@ -1,5 +1,5 @@
 import { Loader } from "@googlemaps/js-api-loader";
-import { explainGoogleMapsError, GoogleMapsLoadError } from "./googleMapsErrors";
+import { explainGoogleMapsError, GoogleMapsLoadError } from "./googleMapsDiagnostics";
 
 let mapsPromise: Promise<typeof google> | null = null;
 let authFailureHandler: ((error: GoogleMapsLoadError) => void) | null = null;
@@ -28,7 +28,7 @@ export function maskApiKey(apiKey = getApiKey()): string | undefined {
 export function setGoogleMapsAuthFailureHandler(handler: (error: GoogleMapsLoadError) => void): void {
   authFailureHandler = handler;
   window.gm_authFailure = () => {
-    const error = explainGoogleMapsError("Google Maps authentication failed. Check DevTools for the exact Maps error code.");
+    const error = explainGoogleMapsError("Google Maps authentication failed. This is usually an API key, billing, API activation, quota, or HTTP referrer problem.");
     debugMaps("auth failure", { code: error.code });
     authFailureHandler?.(error);
   };
