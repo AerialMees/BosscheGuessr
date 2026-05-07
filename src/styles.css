@@ -5,14 +5,6 @@ body {
   color: #39ff88;
   font-family: "Courier New", monospace;
 }
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.04), rgba(255,255,255,0.04) 1px, transparent 1px, transparent 4px);
-  mix-blend-mode: overlay;
-}
 button, input, select { font: inherit; }
 input, select {
   width: 100%;
@@ -22,8 +14,21 @@ input, select {
   padding: 0.7rem;
 }
 .screen {
+  position: relative;
   min-height: 100%;
   padding: 2rem;
+}
+.screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.04), rgba(255,255,255,0.04) 1px, transparent 1px, transparent 4px);
+  opacity: 0.28;
+  mix-blend-mode: normal;
+}
+.screen > * {
+  position: relative;
 }
 .centered {
   display: grid;
@@ -119,6 +124,23 @@ th { color: #ff9f1c; }
   position: absolute;
   inset: 0;
 }
+.street-view-container,
+.guess-map-container,
+.street-view-container .gm-style,
+.street-view-container .gm-style *,
+.guess-map-container .gm-style,
+.guess-map-container .gm-style * {
+  /*
+  Do not apply CRT/invert/filter effects to Google Maps containers.
+  They render image tiles and Street View panoramas and will visually break if a parent has filter or blend-mode.
+  */
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+.street-view-container,
+.guess-map-canvas {
+  opacity: 1;
+}
 .result-map-shell .guess-map {
   inset: 2rem;
   width: auto;
@@ -170,6 +192,18 @@ th { color: #ff9f1c; }
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
+}
+.debug-boundary-label {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  padding: 0.4rem 0.5rem;
+  background: rgba(0,0,0,0.78);
+  border: 1px solid #39ff88;
+  color: #ffef9a;
+  font-size: 0.75rem;
 }
 .result-overlay {
   position: absolute;

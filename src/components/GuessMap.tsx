@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { zones } from "../data/zones";
+import { getBoundsForPolygon } from "../lib/geo";
 import type { ConcreteZoneId, LatLngLiteral } from "../types/game";
 import { RetroButton } from "./RetroButton";
 
@@ -18,8 +19,10 @@ export function GuessMap({ zoneId, guessLocation, actualLocation, onGuessChange,
   const guessMarkerRef = useRef<google.maps.Marker | null>(null);
   const actualMarkerRef = useRef<google.maps.Marker | null>(null);
   const lineRef = useRef<google.maps.Polyline | null>(null);
+  const zonePolygonRef = useRef<google.maps.Polygon | null>(null);
   const [expanded, setExpanded] = useState(false);
   const zone = zones[zoneId];
+  const showDebugPolygon = import.meta.env.VITE_ENABLE_DEBUG_TOOLS === "true";
 
   useEffect(() => {
     if (!mapDivRef.current || mapRef.current) return;
@@ -41,7 +44,29 @@ export function GuessMap({ zoneId, guessLocation, actualLocation, onGuessChange,
     if (!mapRef.current) return;
     mapRef.current.setCenter(zone.center);
     mapRef.current.setZoom(zone.defaultZoom);
-  }, [zone.center, zone.defaultZoom, zoneId]);
+
+    zonePolygonRef.current?.setMap(null);
+    zonePolygonRef.current = null;
+    if (showDebugPolygon) {
+      zonePolygonRef.current = new google.maps.Polygon({
+        map: mapRef.current,
+        paths: zone.polygon,
+        clickable: false,
+        strokeColor: "#39ff88",
+        strokeOpacity: 0.9,
+        strokeWeight: 2,
+        fillColor: "#39ff88",
+        fillOpacity: 0.08,
+      });
+      const polygonBounds = getBoundsForPolygon(zone.polygon);
+      mapRef.current.fitBounds({
+        north: polygonBounds.north,
+        south: polygonBounds.south,
+        east: polygonBounds.east,
+        west: polygonBounds.west,
+      });
+    }
+  }, [showDebugPolygon, zone.center, zone.defaultZoom, zone.polygon, zoneId]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -82,8 +107,9 @@ export function GuessMap({ zoneId, guessLocation, actualLocation, onGuessChange,
   }, [actualLocation, guessLocation]);
 
   return (
-    <div className={`guess-map ${expanded ? "guess-map-expanded" : ""}`}>
+    <div className={`guess-map guess-map-container ${expanded ? "guess-map-expanded" : ""}`}>
       <div ref={mapDivRef} className="guess-map-canvas" />
+      {showDebugPolygon && <div className="debug-boundary-label">Showing gameplay polygon, not official boundary.</div>}
       <div className="guess-map-controls">
         <RetroButton type="button" tone="secondary" onClick={() => setExpanded((value) => !value)}>
           {expanded ? "Shrink" : "Expand"}

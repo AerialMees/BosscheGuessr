@@ -60,7 +60,7 @@ To create a production build:
 npm run build
 ```
 
-## Editing town boundaries
+## Editing gameplay boundaries
 
 Town zones live in `src/data/zones.ts`.
 
@@ -69,18 +69,38 @@ Each zone has:
 - `id`
 - `displayName`
 - `center`
-- `bounds`
-- optional `polygon`
+- `polygon`
+- computed `bounds`
 - `defaultZoom`
 - notes
 
-The MVP currently uses approximate rectangular bounds. Each zone includes this reminder:
+The boundaries are approximate gameplay polygons, not official cadastral, municipal, or Google boundaries. Each polygon is an editable list of WGS84 `{ lat, lng }` coordinates:
 
 ```ts
-// TODO: Adjust these bounds manually after testing.
+polygon: [
+  { lat: 51.7357, lng: 5.3178 },
+  { lat: 51.7361, lng: 5.3269 },
+]
 ```
 
-To tune an area, adjust `north`, `south`, `east`, and `west`, then run the game and test generation. Polygon filtering is already supported by `zoneContainsPoint`, so later you can add a `polygon` array for more accurate town shapes.
+Bounds are computed from the polygon with `getBoundsForPolygon`, then used for random candidate generation and debug fitting. To tune an area, move polygon vertices in `src/data/zones.ts`, run the game, and test generation.
+
+Empel intentionally uses a tighter polygon than the first MVP so it stays around the built-up village. `src/data/zones.ts` also exports `empelCorePolygon` and a hidden `empel-core` testing zone if you want an even stricter test area later.
+
+When `VITE_ENABLE_DEBUG_TOOLS=true`, the guessing map draws the selected gameplay polygon with a visible outline and this note: "Showing gameplay polygon, not official boundary."
+
+## Troubleshooting inverted Street View colors
+
+Google Maps and Street View containers must not have CSS `filter`, `mix-blend-mode`, opacity tricks, or inverted CRT effects applied to them or their parents. Retro styling should stay on HUDs, panels, buttons, and leaderboard UI.
+
+The app includes a defensive CSS reset for `.street-view-container`, `.guess-map-container`, and `.gm-style` descendants:
+
+```css
+filter: none !important;
+mix-blend-mode: normal !important;
+```
+
+If Street View colors are still inverted after this, check browser dark-mode extensions, forced color settings, or experimental browser flags.
 
 ## Leaderboard
 
@@ -105,9 +125,21 @@ VITE_ENABLE_DEBUG_TOOLS=true
 
 This shows pano id, actual lat/lng, current zone, copy JSON, and a test generation button.
 
+Manual boundary and color checklist:
+
+1. Start game in Empel.
+2. Generate at least 10 Empel rounds.
+3. Confirm locations stay inside the intended Empel village game area.
+4. Start Rosmalen, Engelen, and Kerkdriel.
+5. Confirm locations stay roughly inside their towns.
+6. Confirm Street View colors are normal.
+7. Confirm guessing map colors are normal.
+8. Confirm leaderboard still works.
+9. Confirm no `.env` or API key is committed.
+
 ## Known limitations
 
-- Town boundaries are approximate starter boxes.
+- Town boundaries are approximate gameplay polygons.
 - Random generation can fail if a zone has sparse Street View coverage or bounds are too tight.
 - Speedrun timer config exists, but the visible timer is not implemented yet.
 - No Move mode disables click-to-go and links controls, but Google UI behavior can vary.

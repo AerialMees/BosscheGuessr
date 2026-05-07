@@ -52,7 +52,7 @@ export function GameScreen({ round, modeId, totalRounds, totalScore, onSubmitGue
 
   return (
     <main className="game-screen">
-      <div ref={panoDivRef} className="street-view" />
+      <div ref={panoDivRef} className="street-view street-view-container" />
       <div className="hud">
         <span>ROUND {round.roundNumber}/{totalRounds}</span>
         <span>{zones[round.zoneId].displayName}</span>

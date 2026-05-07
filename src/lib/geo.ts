@@ -10,11 +10,34 @@ export function randomPointInBounds(bounds: BoundsLiteral): LatLngLiteral {
   };
 }
 
+export function getBoundsForPolygon(polygon: LatLngLiteral[]): BoundsLiteral {
+  if (polygon.length === 0) {
+    throw new Error("Cannot compute bounds for an empty polygon");
+  }
+
+  return polygon.reduce<BoundsLiteral>(
+    (bounds, point) => ({
+      north: Math.max(bounds.north, point.lat),
+      south: Math.min(bounds.south, point.lat),
+      east: Math.max(bounds.east, point.lng),
+      west: Math.min(bounds.west, point.lng),
+    }),
+    {
+      north: polygon[0].lat,
+      south: polygon[0].lat,
+      east: polygon[0].lng,
+      west: polygon[0].lng,
+    },
+  );
+}
+
 export function isPointInBounds(point: LatLngLiteral, bounds: BoundsLiteral): boolean {
   return point.lat <= bounds.north && point.lat >= bounds.south && point.lng <= bounds.east && point.lng >= bounds.west;
 }
 
 export function isPointInPolygon(point: LatLngLiteral, polygon: LatLngLiteral[]): boolean {
+  if (polygon.length < 3) return false;
+
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const xi = polygon[i].lng;
@@ -27,17 +50,25 @@ export function isPointInPolygon(point: LatLngLiteral, polygon: LatLngLiteral[])
   return inside;
 }
 
+export function randomPointInPolygon(polygon: LatLngLiteral[], maxAttempts = 1000): LatLngLiteral {
+  const bounds = getBoundsForPolygon(polygon);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidate = randomPointInBounds(bounds);
+    if (isPointInPolygon(candidate, polygon)) return candidate;
+  }
+
+  throw new Error("Could not generate random point inside polygon");
+}
+
 export function zoneContainsPoint(zone: GameZone, point: LatLngLiteral): boolean {
-  if (!isPointInBounds(point, zone.bounds)) return false;
-  return zone.polygon ? isPointInPolygon(point, zone.polygon) : true;
+  const bounds = zone.bounds ?? getBoundsForPolygon(zone.polygon);
+  if (!isPointInBounds(point, bounds)) return false;
+  return isPointInPolygon(point, zone.polygon);
 }
 
 export function randomPointInZone(zone: GameZone): LatLngLiteral {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const point = randomPointInBounds(zone.bounds);
-    if (zoneContainsPoint(zone, point)) return point;
-  }
-  return zone.center;
+  return randomPointInPolygon(zone.polygon);
 }
 
 export function distanceMeters(a: LatLngLiteral, b: LatLngLiteral): number {

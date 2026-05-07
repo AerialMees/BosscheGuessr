@@ -13,14 +13,15 @@ export interface BoundsLiteral {
 }
 
 export interface GameZone {
-  id: ConcreteZoneId;
+  id: string;
   displayName: string;
   center: LatLngLiteral;
-  bounds: BoundsLiteral;
-  polygon?: LatLngLiteral[];
+  bounds?: BoundsLiteral;
+  polygon: LatLngLiteral[];
   defaultZoom: number;
   difficultyLabel: string;
   notes?: string;
+  gameplayBoundaryDisclaimer?: string;
 }
 
 export interface GameMode {

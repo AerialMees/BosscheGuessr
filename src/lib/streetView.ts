@@ -3,14 +3,23 @@ import { distanceMeters, randomPointInZone, zoneContainsPoint } from "./geo";
 import { randomHeading } from "./random";
 
 export const RANDOM_SEARCH_RADIUS_METERS = 100;
-export const MAX_PANO_ATTEMPTS = 40;
+export const MAX_PANO_ATTEMPTS = 50;
 export const MAX_RETURN_DISTANCE_FROM_RANDOM_POINT_METERS = 150;
+const EMPEL_FALLBACK_RADIUS_METERS = 175;
+const EMPEL_FALLBACK_AFTER_ATTEMPT = 25;
+const SUSPICIOUS_ZONE_CENTER_BUFFER_METERS = 250;
 
 export interface PanoSearchOptions {
   radiusMeters?: number;
   maxAttempts?: number;
   maxReturnDistanceMeters?: number;
   usedPanoIds?: Set<string>;
+}
+
+function debugStreetView(message: string, details: Record<string, unknown>): void {
+  if (import.meta.env.VITE_ENABLE_DEBUG_TOOLS === "true") {
+    console.debug(`[StreetView] ${message}`, details);
+  }
 }
 
 export async function getPanoramaNear(location: LatLngLiteral, radius: number): Promise<google.maps.StreetViewPanoramaData | null> {
@@ -22,9 +31,16 @@ export async function getPanoramaNear(location: LatLngLiteral, radius: number): 
       radius,
       source: StreetViewSource.OUTDOOR,
     });
+    debugStreetView("lookup result", {
+      seed: location,
+      radius,
+      status: "OK",
+      panoId: response.data.location?.pano,
+      actualLocation: response.data.location?.latLng?.toJSON(),
+    });
     return response.data;
   } catch (error) {
-    console.debug("Street View lookup rejected", { location, error });
+    debugStreetView("lookup rejected", { seed: location, radius, status: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }
@@ -43,34 +59,69 @@ export function isPanoAcceptable(
   return distanceMeters(randomPoint, actualLocation) <= options.maxReturnDistanceMeters;
 }
 
+function maxUsefulDistanceFromZoneCenter(zone: GameZone): number {
+  const farthestVertex = Math.max(...zone.polygon.map((point) => distanceMeters(zone.center, point)));
+  return farthestVertex + SUSPICIOUS_ZONE_CENTER_BUFFER_METERS;
+}
+
 export async function findRandomPanoramaInZone(zone: GameZone, options: PanoSearchOptions = {}): Promise<RoundLocation> {
-  const radiusMeters = options.radiusMeters ?? RANDOM_SEARCH_RADIUS_METERS;
   const maxAttempts = options.maxAttempts ?? MAX_PANO_ATTEMPTS;
   const maxReturnDistanceMeters = options.maxReturnDistanceMeters ?? MAX_RETURN_DISTANCE_FROM_RANDOM_POINT_METERS;
   const usedPanoIds = options.usedPanoIds ?? new Set<string>();
+  const maxCenterDistanceMeters = maxUsefulDistanceFromZoneCenter(zone);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const randomPoint = randomPointInZone(zone);
+    const radiusMeters =
+      options.radiusMeters ??
+      (zone.id === "empel" && attempt > EMPEL_FALLBACK_AFTER_ATTEMPT ? EMPEL_FALLBACK_RADIUS_METERS : RANDOM_SEARCH_RADIUS_METERS);
     const pano = await getPanoramaNear(randomPoint, radiusMeters);
     const panoId = pano?.location?.pano;
     const actualLatLng = pano?.location?.latLng;
 
     if (!pano || !panoId || !actualLatLng) {
-      console.debug("Rejected panorama: no result", { attempt, zone: zone.id });
+      debugStreetView("rejected panorama", { attempt, zone: zone.id, seed: randomPoint, reason: "no-result" });
       continue;
     }
+    const actualLocation = actualLatLng.toJSON();
     if (usedPanoIds.has(panoId)) {
-      console.debug("Rejected panorama: duplicate", { attempt, panoId });
+      debugStreetView("rejected panorama", { attempt, zone: zone.id, seed: randomPoint, panoId, actualLocation, reason: "duplicate" });
       continue;
     }
-    if (!isPanoAcceptable(pano, zone, randomPoint, { maxReturnDistanceMeters })) {
-      console.debug("Rejected panorama: outside zone or too far", { attempt, panoId, randomPoint });
+    if (!zoneContainsPoint(zone, actualLocation)) {
+      debugStreetView("rejected panorama", { attempt, zone: zone.id, seed: randomPoint, panoId, actualLocation, reason: "outside-polygon" });
+      continue;
+    }
+    const distanceFromSeed = distanceMeters(randomPoint, actualLocation);
+    if (distanceFromSeed > maxReturnDistanceMeters) {
+      debugStreetView("rejected panorama", {
+        attempt,
+        zone: zone.id,
+        seed: randomPoint,
+        panoId,
+        actualLocation,
+        distanceFromSeed,
+        reason: "too-far-from-seed",
+      });
+      continue;
+    }
+    const distanceFromCenter = distanceMeters(zone.center, actualLocation);
+    if (distanceFromCenter > maxCenterDistanceMeters) {
+      debugStreetView("rejected panorama", {
+        attempt,
+        zone: zone.id,
+        seed: randomPoint,
+        panoId,
+        actualLocation,
+        distanceFromCenter,
+        reason: "suspiciously-far-from-zone-center",
+      });
       continue;
     }
 
     return {
       panoId,
-      actualLocation: actualLatLng.toJSON(),
+      actualLocation,
       initialPov: { heading: randomHeading(), pitch: 0, zoom: 0 },
     };
   }
