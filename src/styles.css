@@ -63,6 +63,55 @@ input, select {
   margin: 1rem 0;
   white-space: pre-wrap;
 }
+.maps-setup-status,
+.maps-error-panel {
+  border: 2px solid #1bd3ff;
+  background: rgba(0, 0, 0, 0.82);
+  margin: 1rem 0;
+  padding: 1rem;
+}
+.maps-setup-status h2,
+.maps-error-panel h2 {
+  color: #1bd3ff;
+  margin-top: 0;
+}
+.maps-error-panel {
+  border-color: #ff9f1c;
+  color: #ffe7b8;
+}
+.maps-error-panel h3 {
+  color: #39ff88;
+}
+.maps-error-panel dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+.maps-error-panel dt {
+  color: #ff9f1c;
+  font-weight: 700;
+}
+.maps-error-panel dd {
+  margin: 0.2rem 0 0;
+}
+.maps-error-panel code {
+  color: #39ff88;
+}
+.maps-error-panel ol {
+  padding-left: 1.4rem;
+}
+.status-grid {
+  display: grid;
+  grid-template-columns: minmax(130px, max-content) minmax(0, 1fr);
+  gap: 0.35rem 0.75rem;
+  overflow-wrap: anywhere;
+}
+.status-grid span {
+  color: #ff9f1c;
+}
+.status-error {
+  color: #ffb3b3;
+}
 .setup-form {
   display: grid;
   gap: 1rem;

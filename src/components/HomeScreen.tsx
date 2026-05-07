@@ -2,16 +2,20 @@ import { useMemo, useState } from "react";
 import { modes } from "../data/modes";
 import { selectableZones } from "../data/zones";
 import { getLeaderboard } from "../lib/leaderboard";
+import type { GoogleMapsLoadError } from "../lib/googleMapsErrors";
 import type { ModeId, ZoneId } from "../types/game";
 import { Leaderboard } from "./Leaderboard";
+import { MapsErrorPanel } from "./MapsErrorPanel";
+import { MapsSetupStatus } from "./MapsSetupStatus";
 import { RetroButton } from "./RetroButton";
 
 interface HomeScreenProps {
   onStart: (options: { playerName: string; zoneId: ZoneId; modeId: ModeId }) => void;
-  errorMessage?: string;
+  mapsLoaded: boolean;
+  mapsError?: GoogleMapsLoadError;
 }
 
-export function HomeScreen({ onStart, errorMessage }: HomeScreenProps) {
+export function HomeScreen({ onStart, mapsLoaded, mapsError }: HomeScreenProps) {
   const [playerName, setPlayerName] = useState("PLAYER 1");
   const [zoneId, setZoneId] = useState<ZoneId>("empel");
   const [modeId, setModeId] = useState<ModeId>("classic");
@@ -27,7 +31,8 @@ export function HomeScreen({ onStart, errorMessage }: HomeScreenProps) {
           <p>Retro guessing around Empel, Rosmalen, Engelen, and Kerkdriel.</p>
         </div>
 
-        {errorMessage && <div className="error-panel">{errorMessage}</div>}
+        <MapsSetupStatus mapsLoaded={mapsLoaded} lastError={mapsError} />
+        {mapsError && <MapsErrorPanel error={mapsError} />}
 
         <form
           className="panel setup-form"

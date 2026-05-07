@@ -41,10 +41,78 @@ cp .env.example .env
 5. Put the key in `.env`:
 
 ```bash
-VITE_GOOGLE_MAPS_API_KEY=your_key_here
+VITE_GOOGLE_MAPS_API_KEY=your_real_key
 ```
 
 Never commit `.env` or API keys. This repo includes `.env.example` only.
+
+## Fixing: This page can't load Google Maps correctly
+
+That Google overlay usually means the Maps JavaScript API loaded but Google rejected the key, project, billing state, quota, or current URL. The app now shows a local diagnostics panel with the detected issue, current origin, expected localhost referrers, and a checklist.
+
+### A. Check browser console
+
+Open DevTools > Console and look for the exact Google Maps error code:
+
+- `BillingNotEnabledMapError`
+- `ApiNotActivatedMapError`
+- `RefererNotAllowedMapError`
+- `MissingKeyMapError`
+- `InvalidKeyMapError`
+- `ExpiredKeyMapError`
+- `ApiTargetBlockedMapError`
+- `OverQuotaMapError`
+
+### B. Correct Google Cloud setup
+
+1. Enable Maps JavaScript API.
+2. Enable billing for the project that owns the key.
+3. Create an API key.
+4. Restrict the application by HTTP referrers:
+
+```text
+http://localhost:5173/*
+http://127.0.0.1:5173/*
+```
+
+5. Restrict the API key to Maps JavaScript API.
+
+### C. Correct local .env
+
+In the project root, create `.env`:
+
+```bash
+VITE_GOOGLE_MAPS_API_KEY=your_real_key
+VITE_ENABLE_DEBUG_TOOLS=false
+```
+
+Use `VITE_GOOGLE_MAPS_API_KEY`, not `GOOGLE_MAPS_API_KEY`. Vite only exposes variables prefixed with `VITE_`.
+
+### D. Restart Vite
+
+After changing `.env`, stop the dev server and run:
+
+```bash
+npm run dev
+```
+
+### E. Do not open index.html directly
+
+Use:
+
+```bash
+npm run dev
+```
+
+Then open:
+
+```text
+http://localhost:5173/
+```
+
+### F. If still broken
+
+Temporarily remove API key restrictions to test. If it works, the issue is probably an HTTP referrer or API restriction mismatch. Re-add safe restrictions after confirming the key and project are otherwise valid.
 
 ## Running locally
 

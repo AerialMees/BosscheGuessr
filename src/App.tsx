@@ -8,12 +8,14 @@ import { RoundResultOverlay } from "./components/RoundResultOverlay";
 import { modes } from "./data/modes";
 import { concreteZoneIds, zones } from "./data/zones";
 import { distanceMeters } from "./lib/geo";
-import { humanizeGoogleMapsError, loadGoogleMaps } from "./lib/googleMapsLoader";
+import { loadGoogleMaps, setGoogleMapsAuthFailureHandler } from "./lib/googleMapsLoader";
+import { explainGoogleMapsError } from "./lib/googleMapsErrors";
 import { createLeaderboardEntry, getLeaderboard, saveLeaderboardEntry } from "./lib/leaderboard";
 import { calculateScore, ratingForDistance } from "./lib/scoring";
 import { findRandomPanoramaInZone } from "./lib/streetView";
 import { pickRandom } from "./lib/random";
 import type { ConcreteZoneId, CurrentRound, GameState, LatLngLiteral, LeaderboardEntry, ModeId, ZoneId } from "./types/game";
+import type { GoogleMapsLoadError } from "./lib/googleMapsErrors";
 
 const initialState: GameState = {
   status: "home",
@@ -31,6 +33,8 @@ export default function App() {
   const [game, setGame] = useState<GameState>(initialState);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(() => getLeaderboard());
   const [finalEntry, setFinalEntry] = useState<LeaderboardEntry | null>(null);
+  const [mapsLoaded, setMapsLoaded] = useState(false);
+  const [mapsError, setMapsError] = useState<GoogleMapsLoadError | undefined>();
 
   const selectRoundZone = useCallback((selectedZoneId: ZoneId): ConcreteZoneId => {
     return selectedZoneId === "mixed" ? pickRandom(concreteZoneIds) : selectedZoneId;
@@ -41,6 +45,8 @@ export default function App() {
       setGame((current) => ({ ...current, status: "loading-round", errorMessage: undefined }));
       try {
         await loadGoogleMaps();
+        setMapsLoaded(true);
+        setMapsError(undefined);
         const zoneId = selectRoundZone(state.selectedZoneId);
         const location = await findRandomPanoramaInZone(zones[zoneId], { usedPanoIds: state.usedPanoIds });
         const currentRound: CurrentRound = {
@@ -55,10 +61,12 @@ export default function App() {
           usedPanoIds: new Set([...current.usedPanoIds, location.panoId]),
         }));
       } catch (error) {
+        const mappedError = explainGoogleMapsError(error);
+        setMapsError(mappedError);
         setGame((current) => ({
           ...current,
           status: "home",
-          errorMessage: humanizeGoogleMapsError(error),
+          errorMessage: mappedError.message,
         }));
       }
     },
@@ -148,6 +156,14 @@ export default function App() {
     setLeaderboard(getLeaderboard());
   }, [finalEntry]);
 
+  useEffect(() => {
+    setGoogleMapsAuthFailureHandler((error) => {
+      setMapsLoaded(false);
+      setMapsError(error);
+      setGame((current) => ({ ...current, status: "home", errorMessage: error.message }));
+    });
+  }, []);
+
   if (game.status === "loading-round") return <LoadingScreen />;
   if (game.status === "playing" && game.currentRound) {
     return (
@@ -194,5 +210,5 @@ export default function App() {
     );
   }
 
-  return <HomeScreen onStart={startGame} errorMessage={game.errorMessage} />;
+  return <HomeScreen onStart={startGame} mapsLoaded={mapsLoaded} mapsError={mapsError} />;
 }
