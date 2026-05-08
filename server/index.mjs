@@ -32,8 +32,8 @@ server.on("error", (error) => {
       server.listen(SERVER_PORT, activeServerHost);
       return;
     }
-    console.error(`Could not bind the multiplayer server on ${activeServerHost}:${SERVER_PORT}.`);
-    console.error("On macOS, allow Node/Terminal through the firewall, or try a normal Terminal window outside sandboxed tools.");
+    console.error(`Could not bind the BosscheGuessr app server on ${activeServerHost}:${SERVER_PORT}.`);
+    console.error("Close old BosscheGuessr launch terminals, check macOS firewall, or try a normal Terminal window outside sandboxed tools.");
     process.exit(1);
   }
   throw error;

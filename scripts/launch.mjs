@@ -5,10 +5,9 @@ import net from "node:net";
 import os from "node:os";
 
 const CLIENT_PORT = Number(process.env.CLIENT_PORT ?? 5173);
-const SERVER_PORT = Number(process.env.PORT ?? 3001);
+const SERVER_PORT = Number(process.env.PORT ?? CLIENT_PORT);
 const LAUNCH_VERBOSE = process.env.LAUNCH_VERBOSE === "true";
 const STABILITY_MS = 1500;
-const RESTART_WINDOW_MS = 30_000;
 const env = readDotEnv();
 const apiKey = env.VITE_GOOGLE_MAPS_API_KEY?.trim();
 const issues = getEnvIssues(apiKey);
@@ -16,49 +15,44 @@ const launchState = {
   ready: false,
   clientResponding: false,
   serverResponding: false,
-  clientStarted: false,
+  buildStarted: false,
   serverStarted: false,
   stableSince: 0,
-  lastClientRestartAt: 0,
-  clientRestartTimes: [],
-  warnedRestartLoop: false,
-  recentClientConfigLines: [],
 };
 let spinnerIndex = 0;
 let lastRenderedBars = "";
 
 printHeader();
-renderStatusBars({ env: "running", ports: "waiting", server: "waiting", client: "waiting", stability: "waiting" });
+renderStatusBars({ env: "running", ports: "waiting", build: "waiting", server: "waiting", stability: "waiting" });
 
 if (issues.length) {
-  renderStatusBars({ env: "failed", ports: "waiting", server: "waiting", client: "waiting", stability: "waiting" });
+  renderStatusBars({ env: "failed", ports: "waiting", build: "waiting", server: "waiting", stability: "waiting" });
   console.log("Setup needs attention before launch:\n");
   for (const issue of issues) console.log(`- ${issue}`);
   console.log("\nFix .env, then run npm run launch again.");
   process.exit(1);
 }
-renderStatusBars({ env: "done", ports: "running", server: "waiting", client: "waiting", stability: "waiting" });
+renderStatusBars({ env: "done", ports: "running", build: "waiting", server: "waiting", stability: "waiting" });
 
 const { issues: portIssues, warnings: portWarnings } = await getPortPreflight();
 if (portIssues.length) {
-  renderStatusBars({ env: "done", ports: "failed", server: "waiting", client: "waiting", stability: "waiting" });
+  renderStatusBars({ env: "done", ports: "failed", build: "waiting", server: "waiting", stability: "waiting" });
   console.log("Cannot launch yet:\n");
   for (const issue of portIssues) console.log(`- ${issue}`);
   console.log("\nStop the old BosscheGuessr terminal/window, then run npm run launch again.");
   console.log(`If you intentionally want another client port, run CLIENT_PORT=5174 npm run launch and add that port to Google referrers.`);
   process.exit(1);
 }
-renderStatusBars({ env: "done", ports: "done", server: "waiting", client: "waiting", stability: "waiting" });
+renderStatusBars({ env: "done", ports: "done", build: "waiting", server: "waiting", stability: "waiting" });
 for (const warning of portWarnings) console.log(`Warning: ${warning}`);
 
 const lanUrls = getLanUrls(CLIENT_PORT);
 console.log("Environment OK");
 console.log(`Google Maps key: ${mask(apiKey)}`);
 console.log("");
-console.log("Starting BosscheGuessr services...");
-console.log(`  Client: http://localhost:${CLIENT_PORT}`);
-console.log(`  Server: http://localhost:${SERVER_PORT}`);
-console.log("Waiting for both services to respond before opening the game.");
+console.log("Building BosscheGuessr once, then serving it without a Vite watcher.");
+console.log(`  App: http://localhost:${CLIENT_PORT}`);
+console.log("Waiting for the build and server health check before opening the game.");
 console.log("");
 
 const childEnv = {
@@ -66,20 +60,53 @@ const childEnv = {
   CLIENT_PORT: String(CLIENT_PORT),
   PORT: String(SERVER_PORT),
 };
-const viteBin = process.platform === "win32" ? path.resolve("node_modules/.bin/vite.cmd") : path.resolve("node_modules/.bin/vite");
-const children = [
-  startChild("client", viteBin, ["--host", "0.0.0.0", "--port", String(CLIENT_PORT), "--strictPort"], childEnv),
-  startChild("server", process.execPath, ["server/index.mjs"], childEnv),
-];
+const children = [];
 
 let shuttingDown = false;
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => stopChildren(signal));
 }
 
+renderStatusBars({ env: "done", ports: "done", build: "running", server: "waiting", stability: "waiting" });
+try {
+  await runBuild(childEnv);
+} catch (error) {
+  renderStatusBars({ env: "done", ports: "done", build: "failed", server: "waiting", stability: "waiting" });
+  console.error(`Build failed: ${error instanceof Error ? error.message : "unknown error"}`);
+  process.exit(1);
+}
+renderStatusBars({ env: "done", ports: "done", build: "done", server: "waiting", stability: "waiting" });
+
+children.push(startChild("server", process.execPath, ["server/index.mjs"], childEnv));
 await waitUntilReady();
 console.log("");
 console.log("BosscheGuessr is running. Press Ctrl+C here to stop everything.");
+
+async function runBuild(env) {
+  launchState.buildStarted = true;
+  const viteBin = process.platform === "win32" ? path.resolve("node_modules/.bin/vite.cmd") : path.resolve("node_modules/.bin/vite");
+  await runOneShot("build", viteBin, ["build"], env);
+}
+
+function runOneShot(label, command, args, env) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      env,
+    });
+    console.log(`[${label}] starting pid ${child.pid ?? "unknown"}`);
+    child.stdout.on("data", (data) => writePrefixed(label, data));
+    child.stderr.on("data", (data) => writePrefixed(label, data));
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`${label} exited with code ${code ?? "unknown"}${signal ? ` (${signal})` : ""}`));
+    });
+  });
+}
 
 function startChild(label, command, args, env) {
   const child = spawn(command, args, {
@@ -88,7 +115,6 @@ function startChild(label, command, args, env) {
   });
 
   console.log(`[${label}] starting pid ${child.pid ?? "unknown"}`);
-  if (label === "client") launchState.clientStarted = true;
   if (label === "server") launchState.serverStarted = true;
   child.stdout.on("data", (data) => writePrefixed(label, data));
   child.stderr.on("data", (data) => writePrefixed(label, data));
@@ -110,44 +136,13 @@ function writePrefixed(label, data) {
   for (const line of data.toString().split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    handleChildLine(label, trimmed);
     if (shouldPrintLine(label, trimmed)) console.log(`[${label}] ${trimmed}`);
-  }
-}
-
-function handleChildLine(label, line) {
-  if (label !== "client") return;
-  const lower = line.toLowerCase();
-  const isRestartLine =
-    lower.includes("restarting server") ||
-    lower.includes("server restarted") ||
-    lower.includes("changed tsconfig") ||
-    lower.includes("vite.config") ||
-    lower.includes(".env changed");
-  if (!isRestartLine) return;
-
-  launchState.lastClientRestartAt = Date.now();
-  launchState.stableSince = 0;
-  launchState.clientRestartTimes = [...launchState.clientRestartTimes.filter((time) => Date.now() - time < RESTART_WINDOW_MS), Date.now()];
-  launchState.recentClientConfigLines = [...launchState.recentClientConfigLines, line].slice(-8);
-
-  if (launchState.clientRestartTimes.length > 3 && !launchState.warnedRestartLoop) {
-    launchState.warnedRestartLoop = true;
-    console.log("");
-    console.log("Warning: Vite is restarting repeatedly. Something is touching config/env files.");
-    console.log("Recent client restart lines:");
-    for (const recentLine of launchState.recentClientConfigLines) console.log(`  ${recentLine}`);
-    console.log("BosscheGuessr will keep running, but the launcher will not claim Ready until Vite is stable.");
-    console.log("");
-  } else if (!launchState.ready) {
-    console.log("Client restarted, waiting for stability...");
   }
 }
 
 function shouldPrintLine(label, line) {
   if (LAUNCH_VERBOSE) return true;
   if (!launchState.ready) return true;
-  if (label === "client" && line.includes("[vite]") && line.includes("hmr update")) return false;
   return true;
 }
 
@@ -176,7 +171,7 @@ async function waitUntilReady() {
   while (!shuttingDown) {
     const [serverOk, clientOk] = await Promise.all([
       isHttpHealthy(`http://localhost:${SERVER_PORT}/api/health`),
-      isHttpHealthy(`http://localhost:${CLIENT_PORT}`),
+      isHttpHealthy(`http://localhost:${SERVER_PORT}`),
     ]);
 
     launchState.serverResponding = serverOk;
@@ -184,17 +179,16 @@ async function waitUntilReady() {
     renderStatusBars({
       env: "done",
       ports: "done",
+      build: "done",
       server: serverOk ? "done" : launchState.serverStarted ? "running" : "waiting",
-      client: clientOk ? "done" : launchState.clientStarted ? "running" : "waiting",
       stability: launchState.stableSince ? "running" : "waiting",
     });
 
-    const recentlyRestarted = Date.now() - launchState.lastClientRestartAt < STABILITY_MS;
-    if (serverOk && clientOk && !recentlyRestarted) {
+    if (serverOk && clientOk) {
       if (!launchState.stableSince) launchState.stableSince = Date.now();
       if (Date.now() - launchState.stableSince >= STABILITY_MS) {
         launchState.ready = true;
-        renderStatusBars({ env: "done", ports: "done", server: "done", client: "done", stability: "done" });
+        renderStatusBars({ env: "done", ports: "done", build: "done", server: "done", stability: "done" });
         printReady(lanUrls);
         return;
       }
@@ -202,7 +196,7 @@ async function waitUntilReady() {
       launchState.stableSince = 0;
     }
 
-    const status = `${spinner()} client:${clientOk ? "ok" : "waiting"} server:${serverOk ? "ok" : "waiting"}`;
+    const status = `${spinner()} app:${clientOk ? "ok" : "waiting"} server:${serverOk ? "ok" : "waiting"}`;
     if (status !== lastStatus) {
       console.log(status);
       lastStatus = status;
@@ -212,7 +206,7 @@ async function waitUntilReady() {
       slowWarningPrinted = true;
       console.log("");
       console.log("Still waiting. Do not open localhost yet if the launcher has not printed Ready.");
-      console.log("If this stays here, check the [client] and [server] lines above for errors or restart-loop warnings.");
+      console.log("If this stays here, check the [build] and [server] lines above for errors.");
       console.log("");
     }
 
@@ -224,7 +218,7 @@ function printReady(urls) {
   console.log("");
   console.log("Ready.");
   console.log("Open on this Mac:");
-  console.log(`  http://localhost:${CLIENT_PORT}`);
+  console.log(`  http://localhost:${SERVER_PORT}`);
   console.log("");
   if (urls.length) {
     console.log("Friends on the same Wi-Fi can try:");
@@ -246,8 +240,8 @@ function renderStatusBars(steps) {
   const lines = [
     statusBar("Env", steps.env),
     statusBar("Ports", steps.ports),
+    statusBar("Build", steps.build),
     statusBar("Server", steps.server),
-    statusBar("Client", steps.client),
     statusBar("Stable", steps.stability),
   ];
   const output = lines.join("\n");
@@ -347,8 +341,7 @@ function getLanUrls(port) {
 
 async function getPortPreflight() {
   const checks = [
-    { port: CLIENT_PORT, label: "Vite client" },
-    { port: SERVER_PORT, label: "multiplayer server" },
+    { port: SERVER_PORT, label: "BosscheGuessr app server" },
   ];
   const results = await Promise.all(checks.map(async (check) => ({ ...check, status: await getPortStatus(check.port) })));
   return {

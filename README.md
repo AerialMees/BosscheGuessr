@@ -191,7 +191,7 @@ Recommended one-command launch:
 npm run launch
 ```
 
-This checks `.env`, shows launch status bars, starts the Vite client, starts the multiplayer server, waits for both health checks, and only prints **Ready** after startup is stable. `npm run dev` is kept as an alias, but `npm run launch` is the main command. On macOS you can also double-click `Launch BosscheGuessr.command`.
+This checks `.env`, shows launch status bars, builds the client once, starts the local BosscheGuessr server, waits for the health check, and only prints **Ready** after startup is stable. `npm run dev` is kept as an alias, but `npm run launch` is the main command. On macOS you can also double-click `Launch BosscheGuessr.command`.
 
 If you want to run one side manually for debugging:
 
@@ -200,10 +200,10 @@ npm run dev:client
 npm run dev:server
 ```
 
-The one-command launcher starts both:
+The one-command launcher uses one stable app server:
 
-- Vite client on `0.0.0.0:5173`
-- BosscheGuessr multiplayer server on `0.0.0.0:3001`
+- one-time Vite production build
+- BosscheGuessr app/server on `0.0.0.0:5173`
 
 Open the localhost URL only after the launcher prints **Ready**. If you open it earlier, the browser can show `ERR_CONNECTION_REFUSED` while Vite is still starting or restarting.
 
@@ -219,7 +219,7 @@ If `npm run launch` repeatedly prints lines like:
 [vite] changed tsconfig file detected: tsconfig.json
 ```
 
-then something outside the running app is modifying or touching watched config files. The launcher is read-only: it reads `.env`, detects LAN IPs in memory, prints status to the terminal, and serves host info through `/api/host-info`. It must not write `.env`, `vite.config.ts`, `tsconfig.json`, `tsconfig.node.json`, source files, or package files at runtime.
+then something outside the running app is modifying or touching watched config files. The main `npm run launch` command avoids this during play by building once and serving the finished app without a live Vite watcher. The launcher is read-only: it reads `.env`, detects LAN IPs in memory, prints status to the terminal, and serves host info through `/api/host-info`. It must not write `.env`, `vite.config.ts`, `tsconfig.json`, `tsconfig.node.json`, source files, or package files at runtime.
 
 What to check:
 
@@ -231,8 +231,8 @@ What to check:
 Runtime host details are available at:
 
 ```text
-http://localhost:3001/api/health
-http://localhost:3001/api/host-info
+http://localhost:5173/api/health
+http://localhost:5173/api/host-info
 ```
 
 ## Hosting a LAN multiplayer game from your Mac
@@ -295,7 +295,7 @@ ipconfig getifaddr en0
 
 ## Multiplayer architecture
 
-BosscheGuessr now runs as a Vite React client plus a small Node HTTP server. Multiplayer uses simple local HTTP polling for lobby state so the dev server starts reliably on a normal Mac without a separate realtime stack. Lobbies live in memory and are meant for local party sessions, not public internet hosting.
+BosscheGuessr runs as a React client plus a small Node HTTP server. `npm run launch` builds the client once and serves the finished app from the same local server that handles multiplayer polling. Lobbies live in memory and are meant for local party sessions, not public internet hosting.
 
 The server manages:
 

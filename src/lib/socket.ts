@@ -20,7 +20,7 @@ export function getSocket(): PollingMultiplayerClient {
 }
 
 export function getSocketServerUrl(): string {
-  return import.meta.env.VITE_MULTIPLAYER_SERVER_URL || `${window.location.protocol}//${window.location.hostname}:3001`;
+  return import.meta.env.VITE_MULTIPLAYER_SERVER_URL || window.location.origin;
 }
 
 export async function getNetworkInfo(): Promise<{ hostnames: string[]; lanUrls: string[]; port: number }> {
