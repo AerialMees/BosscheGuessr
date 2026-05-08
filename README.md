@@ -33,6 +33,7 @@ Street View is shown only through the official Google Maps JavaScript API, with 
 ```bash
 npm install
 cp .env.example .env
+npm run check:env
 ```
 
 ## Google Maps API key setup
@@ -48,6 +49,8 @@ VITE_GOOGLE_MAPS_API_KEY=your_real_key
 ```
 
 Never commit `.env` or API keys. This repo includes `.env.example` only.
+
+`npm run check:env` verifies that Vite can see the key without printing the full secret. If it reports a masked key like `repl..._key`, the `.env` file still contains the placeholder and needs a real Google Maps JavaScript API key.
 
 For LAN multiplayer, friends load the app through your Mac's local IP instead of `localhost`. If Maps works on the host Mac but fails on phones, add the exact LAN referrer shown by the lobby, for example:
 
@@ -181,6 +184,16 @@ http://localhost:5173/
 Temporarily remove API key restrictions to test. If it works, the issue is probably an HTTP referrer or API restriction mismatch. Re-add safe restrictions after confirming the key and project are otherwise valid.
 
 ## Running locally
+
+Recommended one-command launch:
+
+```bash
+npm run launch
+```
+
+This checks `.env`, prints the local and LAN URLs, starts the Vite client, and starts the multiplayer server. On macOS you can also double-click `Launch BosscheGuessr.command`.
+
+If you want the raw developer scripts instead:
 
 ```bash
 npm run dev

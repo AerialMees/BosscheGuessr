@@ -108,6 +108,19 @@ io.on("connection", (socket) => {
 
 setInterval(() => lobbyManager.cleanupOldLobbies(), 30 * 60 * 1000);
 
+server.on("error", (error: NodeJS.ErrnoException) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`Port ${SERVER_PORT} is already in use. Stop the other server or run with PORT=3002 npm run dev:server.`);
+    process.exit(1);
+  }
+  if (error.code === "EACCES" || error.code === "EPERM") {
+    console.error(`Could not bind the multiplayer server on 0.0.0.0:${SERVER_PORT}.`);
+    console.error("On macOS, allow Node/Terminal through the firewall. In sandboxed terminals, try running npm run dev in a normal Terminal window.");
+    process.exit(1);
+  }
+  throw error;
+});
+
 server.listen(SERVER_PORT, "0.0.0.0", () => {
   const { lanUrls } = getLanUrls(CLIENT_PORT);
   console.log(`BosscheGuessr multiplayer server listening on http://0.0.0.0:${SERVER_PORT}`);
