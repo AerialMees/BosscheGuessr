@@ -4,12 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
-    "dev:client": "vite --host 0.0.0.0",
-    "dev:server": "node --import tsx server/index.ts",
+    "dev": "node scripts/launch.mjs",
+    "dev:client": "vite --host 0.0.0.0 --port 5173 --strictPort",
+    "dev:server": "node server/index.mjs",
     "launch": "node scripts/launch.mjs",
-    "build": "tsc -b && vite build",
-    "start": "node --import tsx server/index.ts",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit --incremental false --pretty false",
+    "build": "vite build",
+    "start": "node server/index.mjs",
     "preview": "vite preview",
     "check:env": "node scripts/check-env.mjs",
     "test": "vitest run --pool=threads --poolOptions.threads.singleThread=true"

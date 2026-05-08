@@ -1,10 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { distanceMeters } from "../src/shared/geo";
-import { calculateScore, scoringScaleForZone } from "../src/shared/scoring";
-import type { LatLngLiteral, MultiplayerLobbyState, MultiplayerSettings, PreparedRound, PublicPlayer, RoundResultPayload } from "../src/shared/types";
-import type { Lobby } from "./types";
+import { distanceMeters } from "./geo.mjs";
+import { calculateScore, scoringScaleForZone } from "./scoring.mjs";
 
-const DEFAULT_SETTINGS: MultiplayerSettings = {
+const DEFAULT_SETTINGS = {
   zoneId: "den-bosch",
   modeId: "classic",
   rounds: 5,
@@ -17,17 +15,17 @@ const DEFAULT_SETTINGS: MultiplayerSettings = {
 };
 
 export class LobbyManager {
-  private lobbies = new Map<string, Lobby>();
-  private readonly onRoundExpired?: (code: string) => void;
+  lobbies = new Map();
+  onRoundExpired;
 
-  constructor(onRoundExpired?: (code: string) => void) {
+  constructor(onRoundExpired) {
     this.onRoundExpired = onRoundExpired;
   }
 
-  createLobby(socketId: string, playerName: string): { state: MultiplayerLobbyState; playerId: string } {
+  createLobby(socketId, playerName) {
     const code = this.createCode();
     const playerId = randomId(10);
-    const lobby: Lobby = {
+    const lobby = {
       id: randomId(12),
       code,
       hostSocketId: socketId,
@@ -42,7 +40,7 @@ export class LobbyManager {
     return { state: this.toPublicState(lobby), playerId };
   }
 
-  joinLobby(codeInput: string, socketId: string, playerName: string): { state: MultiplayerLobbyState; playerId: string } {
+  joinLobby(codeInput, socketId, playerName) {
     const lobby = this.requireLobby(codeInput);
     const existing = lobby.players.find((player) => player.name.toLowerCase() === sanitizePlayerName(playerName).toLowerCase() && !player.connected);
     if (existing) {
@@ -57,14 +55,14 @@ export class LobbyManager {
     return { state: this.toPublicState(lobby), playerId };
   }
 
-  updateSettings(code: string, socketId: string, patch: Partial<MultiplayerSettings>): MultiplayerLobbyState {
+  updateSettings(code, socketId, patch) {
     const lobby = this.requireHostLobby(code, socketId);
     if (lobby.status !== "waiting") throw new Error("Settings can only be changed before the game starts.");
     lobby.settings = sanitizeSettings({ ...lobby.settings, ...patch });
     return this.toPublicState(lobby);
   }
 
-  startGame(code: string, socketId: string, preparedRoundsInput: unknown[]): MultiplayerLobbyState {
+  startGame(code, socketId, preparedRoundsInput) {
     const lobby = this.requireHostLobby(code, socketId);
     const preparedRounds = Array.isArray(preparedRoundsInput) ? preparedRoundsInput.map(validatePreparedRound).slice(0, lobby.settings.rounds) : [];
     if (preparedRounds.length < lobby.settings.rounds) throw new Error("Not enough prepared rounds.");
@@ -86,7 +84,7 @@ export class LobbyManager {
     return this.toPublicState(lobby);
   }
 
-  submitGuess(code: string, socketId: string, roundId: string, guessLocation: LatLngLiteral): { state: MultiplayerLobbyState; results?: RoundResultPayload } {
+  submitGuess(code, socketId, roundId, guessLocation) {
     const lobby = this.requireLobby(code);
     if (lobby.status !== "in-round") throw new Error("This round is not accepting guesses.");
     const player = lobby.players.find((candidate) => candidate.socketId === socketId && candidate.connected);
@@ -108,7 +106,7 @@ export class LobbyManager {
     return { state: this.toPublicState(lobby) };
   }
 
-  nextRound(code: string, socketId: string): MultiplayerLobbyState {
+  nextRound(code, socketId) {
     const lobby = this.requireHostLobby(code, socketId);
     if (lobby.status !== "round-results") throw new Error("Round results are not ready.");
     if (lobby.currentRoundIndex >= lobby.rounds.length - 1) {
@@ -120,8 +118,8 @@ export class LobbyManager {
     return this.toPublicState(lobby);
   }
 
-  leave(socketId: string): MultiplayerLobbyState[] {
-    const changed: MultiplayerLobbyState[] = [];
+  leave(socketId) {
+    const changed = [];
     for (const lobby of this.lobbies.values()) {
       const player = lobby.players.find((candidate) => candidate.socketId === socketId);
       if (!player) continue;
@@ -140,28 +138,22 @@ export class LobbyManager {
     return changed;
   }
 
-  getLobby(code: string): Lobby | undefined {
+  getLobby(code) {
     return this.lobbies.get(normalizeCode(code));
   }
 
-  getPublicState(code: string, revealActual = false): MultiplayerLobbyState | null {
+  getPublicState(code, revealActual = false) {
     const lobby = this.getLobby(code);
     return lobby ? this.toPublicState(lobby, revealActual) : null;
   }
 
-  finishRoundByTimer(code: string): MultiplayerLobbyState | null {
-    const lobby = this.getLobby(code);
-    if (!lobby || lobby.status !== "in-round") return null;
-    return this.finishRound(lobby);
-  }
-
-  roundResultsFor(code: string): RoundResultPayload | null {
+  roundResultsFor(code) {
     const lobby = this.getLobby(code);
     if (!lobby || (lobby.status !== "round-results" && lobby.status !== "finished")) return null;
     return this.roundResults(lobby);
   }
 
-  cleanupOldLobbies(maxAgeMs = 6 * 60 * 60 * 1000): void {
+  cleanupOldLobbies(maxAgeMs = 6 * 60 * 60 * 1000) {
     const now = Date.now();
     for (const [code, lobby] of this.lobbies) {
       if (now - lobby.createdAt > maxAgeMs) {
@@ -171,7 +163,7 @@ export class LobbyManager {
     }
   }
 
-  private startCurrentRound(lobby: Lobby): void {
+  startCurrentRound(lobby) {
     if (lobby.roundTimer) clearTimeout(lobby.roundTimer);
     const round = lobby.rounds[lobby.currentRoundIndex];
     const startedAt = Date.now();
@@ -186,13 +178,13 @@ export class LobbyManager {
     }
   }
 
-  private finishRound(lobby: Lobby): MultiplayerLobbyState {
+  finishRound(lobby) {
     if (lobby.roundTimer) clearTimeout(lobby.roundTimer);
     lobby.status = lobby.currentRoundIndex >= lobby.rounds.length - 1 ? "finished" : "round-results";
     return this.toPublicState(lobby, true);
   }
 
-  private roundResults(lobby: Lobby): RoundResultPayload {
+  roundResults(lobby) {
     const round = lobby.rounds[lobby.currentRoundIndex];
     return {
       round: { ...round, actualLocation: round.actualLocation },
@@ -203,12 +195,12 @@ export class LobbyManager {
     };
   }
 
-  private everyoneConnectedGuessed(lobby: Lobby, roundId: string): boolean {
+  everyoneConnectedGuessed(lobby, roundId) {
     const connectedPlayers = lobby.players.filter((player) => player.connected);
     return connectedPlayers.length > 0 && connectedPlayers.every((player) => Boolean(player.guesses[roundId]));
   }
 
-  private toPublicState(lobby: Lobby, revealActual = false): MultiplayerLobbyState {
+  toPublicState(lobby, revealActual = false) {
     const currentRound = lobby.rounds[lobby.currentRoundIndex];
     const visibleRoundCount = lobby.status === "finished" ? lobby.rounds.length : Math.min(lobby.rounds.length, lobby.currentRoundIndex + 1);
     return {
@@ -225,14 +217,14 @@ export class LobbyManager {
     };
   }
 
-  private publicLeaderboard(lobby: Lobby): PublicPlayer[] {
+  publicLeaderboard(lobby) {
     const currentRoundId = lobby.rounds[lobby.currentRoundIndex]?.id;
     return lobby.players
       .map((player) => this.publicPlayer(player, currentRoundId))
       .sort((a, b) => b.totalScore - a.totalScore || a.totalDistanceMeters - b.totalDistanceMeters);
   }
 
-  private publicPlayer(player: Lobby["players"][number], currentRoundId?: string): PublicPlayer {
+  publicPlayer(player, currentRoundId) {
     const { socketId: _socketId, guesses: _guesses, ...safePlayer } = player;
     return {
       ...safePlayer,
@@ -240,7 +232,7 @@ export class LobbyManager {
     };
   }
 
-  private createCode(): string {
+  createCode() {
     let code = "";
     do {
       code = randomCode(4);
@@ -248,7 +240,7 @@ export class LobbyManager {
     return code;
   }
 
-  private createPlayer(id: string, socketId: string, name: string, isHost: boolean): Lobby["players"][number] {
+  createPlayer(id, socketId, name, isHost) {
     return {
       id,
       socketId,
@@ -262,20 +254,20 @@ export class LobbyManager {
     };
   }
 
-  private requireLobby(code: string): Lobby {
+  requireLobby(code) {
     const lobby = this.getLobby(code);
     if (!lobby) throw new Error("Lobby not found.");
     return lobby;
   }
 
-  private requireHostLobby(code: string, socketId: string): Lobby {
+  requireHostLobby(code, socketId) {
     const lobby = this.requireLobby(code);
     if (lobby.hostSocketId !== socketId) throw new Error("Only the host can do that.");
     return lobby;
   }
 }
 
-export function sanitizeSettings(settings: MultiplayerSettings): MultiplayerSettings {
+export function sanitizeSettings(settings) {
   const modeId = ["classic", "no-move", "timed-view"].includes(settings.modeId) ? settings.modeId : "classic";
   return {
     ...settings,
@@ -289,12 +281,12 @@ export function sanitizeSettings(settings: MultiplayerSettings): MultiplayerSett
   };
 }
 
-function publicRound(round: Lobby["rounds"][number], revealActual: boolean) {
+function publicRound(round, revealActual) {
   const { actualLocation, ...safeRound } = round;
   return revealActual ? { ...safeRound, actualLocation } : safeRound;
 }
 
-function randomId(length: number): string {
+function randomId(length) {
   let id = "";
   while (id.length < length) {
     id += randomBytes(Math.ceil((length * 3) / 4)).toString("base64url").replace(/[^a-z0-9]/gi, "");
@@ -302,14 +294,14 @@ function randomId(length: number): string {
   return id.slice(0, length);
 }
 
-function randomCode(length: number): string {
+function randomCode(length) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const bytes = randomBytes(length);
   return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
 }
 
-function validatePreparedRound(input: unknown): PreparedRound {
-  const candidate = input as PreparedRound;
+function validatePreparedRound(input) {
+  const candidate = input;
   if (!candidate?.panoId || !isLatLng(candidate.actualLocation) || !candidate.initialPov || !candidate.zoneId) {
     throw new Error("Invalid prepared round.");
   }
@@ -325,20 +317,19 @@ function validatePreparedRound(input: unknown): PreparedRound {
   };
 }
 
-function isLatLng(value: unknown): value is LatLngLiteral {
-  const candidate = value as LatLngLiteral;
-  return Number.isFinite(candidate?.lat) && Number.isFinite(candidate?.lng);
+function isLatLng(value) {
+  return Number.isFinite(value?.lat) && Number.isFinite(value?.lng);
 }
 
-function sanitizePlayerName(name: string): string {
+function sanitizePlayerName(name) {
   const trimmed = String(name ?? "").trim().replace(/[^\p{L}\p{N} _.'-]/gu, "").slice(0, 20);
   return trimmed || "Player";
 }
 
-function normalizeCode(code: string): string {
+function normalizeCode(code) {
   return String(code ?? "").trim().toUpperCase();
 }
 
-function clampNumber(value: number, min: number, max: number): number {
+function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, Number(value) || min));
 }

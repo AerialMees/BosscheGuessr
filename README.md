@@ -191,20 +191,49 @@ Recommended one-command launch:
 npm run launch
 ```
 
-This checks `.env`, prints the local and LAN URLs, starts the Vite client, and starts the multiplayer server. On macOS you can also double-click `Launch BosscheGuessr.command`.
+This checks `.env`, shows launch status bars, starts the Vite client, starts the multiplayer server, waits for both health checks, and only prints **Ready** after startup is stable. `npm run dev` is kept as an alias, but `npm run launch` is the main command. On macOS you can also double-click `Launch BosscheGuessr.command`.
 
-If you want the raw developer scripts instead:
+If you want to run one side manually for debugging:
 
 ```bash
-npm run dev
+npm run dev:client
+npm run dev:server
 ```
 
-This starts both:
+The one-command launcher starts both:
 
 - Vite client on `0.0.0.0:5173`
 - BosscheGuessr multiplayer server on `0.0.0.0:3001`
 
-Open the localhost URL printed by Vite on the host Mac.
+Open the localhost URL only after the launcher prints **Ready**. If you open it earlier, the browser can show `ERR_CONNECTION_REFUSED` while Vite is still starting or restarting.
+
+If the LAN URL does not work on a university or campus Wi-Fi network, the network may block device-to-device traffic. Localhost failing is not caused by university Wi-Fi; localhost should still work on the host Mac. For party play, try a home router, phone hotspot, or another Wi-Fi network that allows local devices to see each other.
+
+## Troubleshooting Vite restart loops
+
+If `npm run launch` repeatedly prints lines like:
+
+```text
+[vite] vite.config.ts changed, restarting server...
+[vite] .env changed, restarting server...
+[vite] changed tsconfig file detected: tsconfig.json
+```
+
+then something outside the running app is modifying or touching watched config files. The launcher is read-only: it reads `.env`, detects LAN IPs in memory, prints status to the terminal, and serves host info through `/api/host-info`. It must not write `.env`, `vite.config.ts`, `tsconfig.json`, `tsconfig.node.json`, source files, or package files at runtime.
+
+What to check:
+
+- Stop `npm run launch`, close any old BosscheGuessr terminals, then run `npm run launch` again.
+- Make sure no editor, formatter, cloud sync, backup tool, or script is repeatedly saving `.env`, `vite.config.ts`, or `tsconfig*.json`.
+- Use `LAUNCH_VERBOSE=true npm run launch` if you want full Vite logs.
+- Use `npm run dev:client` and `npm run dev:server` separately if you need to isolate which side is failing.
+
+Runtime host details are available at:
+
+```text
+http://localhost:3001/api/health
+http://localhost:3001/api/host-info
+```
 
 ## Hosting a LAN multiplayer game from your Mac
 
@@ -225,7 +254,7 @@ VITE_ENABLE_DEBUG_TOOLS=false
 4. Run:
 
 ```bash
-npm run dev
+npm run launch
 ```
 
 5. Open the local Vite URL on the Mac.
@@ -266,7 +295,7 @@ ipconfig getifaddr en0
 
 ## Multiplayer architecture
 
-BosscheGuessr now runs as a Vite React client plus a small Express/Socket.IO server. Lobbies live in memory and are meant for local party sessions, not public internet hosting.
+BosscheGuessr now runs as a Vite React client plus a small Node HTTP server. Multiplayer uses simple local HTTP polling for lobby state so the dev server starts reliably on a normal Mac without a separate realtime stack. Lobbies live in memory and are meant for local party sessions, not public internet hosting.
 
 The server manages:
 
@@ -335,7 +364,7 @@ When `VITE_ENABLE_DEBUG_TOOLS=true`, the guessing map draws the selected gamepla
 
 - Classic Local: five relaxed rounds with movement allowed.
 - No Move Mode: movement limited, with pan and zoom still available.
-- X-Second View: choose 0.1-60 seconds to inspect Street View, then the panorama is covered with a translucent memory overlay and you guess from memory.
+- X-Second View: choose 0.1-60 seconds to inspect Street View, then the panorama is covered by a black memory screen and you guess from memory.
 
 ## Sound effects
 

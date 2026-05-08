@@ -1,9 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
-import { loadEnv } from "vite";
 
 const envPath = ".env";
 const raw = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
-const viteEnv = loadEnv("development", process.cwd(), "");
+const viteEnv = readDotEnv(raw);
 const apiKey = viteEnv.VITE_GOOGLE_MAPS_API_KEY?.trim();
 const debugTools = viteEnv.VITE_ENABLE_DEBUG_TOOLS ?? "(not set)";
 const serverUrl = viteEnv.VITE_MULTIPLAYER_SERVER_URL ?? "(auto)";
@@ -40,4 +39,18 @@ function mask(value) {
 function looksPlaceholder(value) {
   const normalized = value.toLowerCase();
   return normalized.includes("your_key") || normalized.includes("replace_with") || normalized.includes("your_google") || normalized === "your_api_key";
+}
+
+function readDotEnv(source) {
+  const entries = {};
+  for (const line of source.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const separator = trimmed.indexOf("=");
+    if (separator === -1) continue;
+    const key = trimmed.slice(0, separator).trim();
+    const value = trimmed.slice(separator + 1).trim().replace(/^['"]|['"]$/g, "");
+    entries[key] = value;
+  }
+  return entries;
 }
