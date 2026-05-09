@@ -140,11 +140,11 @@ export default function App() {
     void startRound(nextState);
   }
 
-  function submitGuess(guessLocation: LatLngLiteral) {
+  function submitGuess(guessLocation: LatLngLiteral, timeRemainingSeconds?: number | null) {
     if (!game.currentRound) return;
     const distance = distanceMeters(guessLocation, game.currentRound.actualLocation);
     const scoringScaleMeters = game.selectedZoneId === "mixed" ? 1000 : zones[game.currentRound.zoneId].scoringScaleMeters;
-    const score = calculateScore(distance, scoringScaleMeters ?? false);
+    const score = calculateScore(distance, scoringScaleMeters ?? false, timeRemainingSeconds);
     const completedRound: CurrentRound = {
       ...game.currentRound,
       guessLocation,

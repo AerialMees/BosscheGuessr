@@ -14,7 +14,7 @@ interface GameScreenProps {
   viewSeconds: number;
   totalRounds: number;
   totalScore: number;
-  onSubmitGuess: (guess: LatLngLiteral) => void;
+  onSubmitGuess: (guess: LatLngLiteral, timeRemainingSeconds?: number | null) => void;
   onResetView: () => void;
   onDebugGenerate: () => void;
 }
@@ -140,7 +140,7 @@ export function GameScreen({ round, modeId, viewSeconds, totalRounds, totalScore
           setGuessLocation(location);
           sound.playGuessPlaced();
         }}
-        onSubmit={() => guessLocation && onSubmitGuess(guessLocation)}
+        onSubmit={() => guessLocation && onSubmitGuess(guessLocation, activeTimerSeconds ? secondsRemaining : undefined)}
       />
       {DEBUG_TOOLS_ENABLED && <DebugPanel round={round} onTestGenerate={onDebugGenerate} />}
     </main>

@@ -20,7 +20,7 @@ Street View is shown only through the official Google Maps JavaScript API, with 
 - Classic, No Move, and X-Second View modes.
 - Random Street View panorama generation inside manually configured town bounds.
 - Guessing map with click-to-place marker.
-- Distance and score calculation up to 5000 points per round.
+- Distance and time-aware score calculation up to 5000 points per round.
 - Actual vs guessed map result with line.
 - Retro arcade leaderboard saved in `localStorage`.
 - Tasteful local Web Audio arcade sounds with a toggle and volume control.
@@ -384,7 +384,7 @@ Bounds are computed from the polygon with `getBoundsForPolygon`, then used for r
 
 Empel intentionally uses a tighter polygon than the first MVP so it stays around the built-up village. `src/data/zones.ts` also exports `empelCorePolygon` and a hidden `empel-core` testing zone if you want an even stricter test area later.
 
-Den Bosch uses a broader urban gameplay polygon and has a wider scoring scale than the smaller village maps.
+Scoring is map-size aware. Small village maps use stricter distance scales, Rosmalen/Kerkdriel are more forgiving, and Den Bosch uses the widest urban scale. Timed rounds also multiply the distance score by `seconds remaining / 60`, capped at full distance score, so fast guesses matter without letting scores exceed 5000.
 
 When `VITE_ENABLE_DEBUG_TOOLS=true`, the guessing map draws the selected polygon and shows boundary source metadata.
 

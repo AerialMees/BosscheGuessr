@@ -95,8 +95,9 @@ export class LobbyManager {
     if (player.guesses[roundId]) return { state: this.toPublicState(lobby) };
 
     const distance = distanceMeters(guessLocation, round.actualLocation);
-    const score = calculateScore(distance, scoringScaleForZone(round.zoneId, lobby.settings.zoneId));
-    const guess = { playerId: player.id, roundId, guessLocation, distanceMeters: distance, score, submittedAt: Date.now() };
+    const submittedAt = Date.now();
+    const score = calculateScore(distance, scoringScaleForZone(round.zoneId, lobby.settings.zoneId), timeRemainingForScore(round, lobby.settings, submittedAt));
+    const guess = { playerId: player.id, roundId, guessLocation, distanceMeters: distance, score, submittedAt };
     player.guesses[roundId] = guess;
     player.totalScore += score;
     player.totalDistanceMeters += distance;
@@ -328,6 +329,16 @@ function validatePreparedRound(input: unknown): PreparedRound {
 function isLatLng(value: unknown): value is LatLngLiteral {
   const candidate = value as LatLngLiteral;
   return Number.isFinite(candidate?.lat) && Number.isFinite(candidate?.lng);
+}
+
+function timeRemainingForScore(round: Lobby["rounds"][number], settings: MultiplayerSettings, submittedAt: number): number | undefined {
+  if (settings.viewTimeLimitSeconds && round.startedAt) {
+    return Math.max(0, (round.startedAt + settings.viewTimeLimitSeconds * 1000 - submittedAt) / 1000);
+  }
+  if (round.endsAt) {
+    return Math.max(0, (round.endsAt - submittedAt) / 1000);
+  }
+  return undefined;
 }
 
 function sanitizePlayerName(name: string): string {
