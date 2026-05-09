@@ -88,14 +88,24 @@ export function GameScreen({ round, modeId, viewSeconds, totalRounds, totalScore
         if (mode.hideStreetViewAfterTime) setStreetViewHidden(true);
         window.clearInterval(interval);
       }
-    }, 50);
+    }, 100);
     return () => window.clearInterval(interval);
   }, [activeTimerSeconds, mode.hideStreetViewAfterTime, round.panoId]);
+
+  useEffect(() => {
+    if (mode.hideStreetViewAfterTime) panoramaRef.current?.setVisible(!streetViewHidden);
+  }, [mode.hideStreetViewAfterTime, streetViewHidden]);
 
   useEffect(() => {
     return () => {
       listenersRef.current.forEach((listener) => listener.remove());
       listenersRef.current = [];
+      if (panoramaRef.current) {
+        google.maps.event.clearInstanceListeners(panoramaRef.current);
+        panoramaRef.current.setVisible(false);
+        panoramaRef.current = null;
+      }
+      if (panoDivRef.current) panoDivRef.current.replaceChildren();
     };
   }, []);
 

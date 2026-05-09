@@ -79,6 +79,7 @@ export function MultiplayerResultsScreen({ lobby, results, playerId, onNextRound
 function MultiplayerResultMap({ results }: { results: RoundResultPayload }) {
   const mapDivRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
+  const overlaysRef = useRef<Array<google.maps.Marker | google.maps.Polyline>>([]);
   const [mapsReady, setMapsReady] = useState(() => Boolean(window.google?.maps));
   const [mapsError, setMapsError] = useState<GoogleMapsLoadError | undefined>();
   const zone = zones[results.round.zoneId as ConcreteZoneId];
@@ -102,6 +103,8 @@ function MultiplayerResultMap({ results }: { results: RoundResultPayload }) {
 
   useEffect(() => {
     if (!mapsReady || !mapDivRef.current) return;
+    overlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    overlaysRef.current = [];
     mapRef.current = new google.maps.Map(mapDivRef.current, {
       center: zone.center,
       zoom: zone.defaultZoom,
@@ -111,21 +114,33 @@ function MultiplayerResultMap({ results }: { results: RoundResultPayload }) {
     });
     const bounds = new google.maps.LatLngBounds();
     const actual = results.round.actualLocation as LatLngLiteral;
-    new google.maps.Marker({ map: mapRef.current, position: actual, label: "A" });
+    overlaysRef.current.push(new google.maps.Marker({ map: mapRef.current, position: actual, label: "A" }));
     bounds.extend(actual);
     results.playerResults.forEach((result, index) => {
-      new google.maps.Marker({ map: mapRef.current, position: result.guessLocation, label: String(index + 1) });
-      new google.maps.Polyline({
+      overlaysRef.current.push(new google.maps.Marker({ map: mapRef.current, position: result.guessLocation, label: String(index + 1) }));
+      overlaysRef.current.push(new google.maps.Polyline({
         map: mapRef.current,
         path: [result.guessLocation, actual],
         strokeColor: ["#00d9ff", "#ff2bd6", "#ff8a00", "#39ffb6"][index % 4],
         strokeOpacity: 0.9,
         strokeWeight: 3,
-      });
+      }));
       bounds.extend(result.guessLocation);
     });
     mapRef.current.fitBounds(bounds, 48);
   }, [mapsReady, results, zone.center, zone.defaultZoom]);
+
+  useEffect(() => {
+    return () => {
+      overlaysRef.current.forEach((overlay) => overlay.setMap(null));
+      overlaysRef.current = [];
+      if (mapRef.current) {
+        google.maps.event.clearInstanceListeners(mapRef.current);
+        mapRef.current = null;
+      }
+      if (mapDivRef.current) mapDivRef.current.replaceChildren();
+    };
+  }, []);
 
   if (mapsError) return <MapsErrorPanel error={mapsError} />;
   if (!mapsReady) return <div className="multiplayer-result-map guess-map-container centered">Loading result map...</div>;

@@ -54,9 +54,9 @@ export function MultiplayerGameScreen({ lobby, playerId, onSubmitGuess }: Multip
   }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 100);
+    const timer = window.setInterval(() => setNow(Date.now()), lobby.settings.viewTimeLimitSeconds ? 100 : 500);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [lobby.settings.viewTimeLimitSeconds]);
 
   useEffect(() => {
     if (!round || !mapsReady || !panoDivRef.current) return;
@@ -86,8 +86,23 @@ export function MultiplayerGameScreen({ lobby, playerId, onSubmitGuess }: Multip
   }, [lobby.settings.allowMove, lobby.settings.allowPan, lobby.settings.allowZoom, mapsReady, round?.id]);
 
   useEffect(() => {
+    return () => {
+      if (panoramaRef.current) {
+        google.maps.event.clearInstanceListeners(panoramaRef.current);
+        panoramaRef.current.setVisible(false);
+        panoramaRef.current = null;
+      }
+      if (panoDivRef.current) panoDivRef.current.replaceChildren();
+    };
+  }, []);
+
+  useEffect(() => {
     if (viewRemaining !== null && viewRemaining <= 0) setViewHidden(true);
   }, [viewRemaining]);
+
+  useEffect(() => {
+    if (lobby.settings.viewTimeLimitSeconds) panoramaRef.current?.setVisible(!viewHidden);
+  }, [lobby.settings.viewTimeLimitSeconds, viewHidden]);
 
   useEffect(() => {
     if (viewRemaining === null || viewRemaining <= 0 || viewRemaining > 5) return;

@@ -26,6 +26,7 @@ type LobbyEvent = "lobby:state" | "lobby:error" | "round:results" | "connect_err
 type Listener = (...args: any[]) => void;
 type EmitCallback = (error: Error | null, response?: SocketResponse) => void;
 const PLAYER_HEARTBEAT_INTERVAL_MS = 15_000;
+const MULTIPLAYER_REQUEST_TIMEOUT_MS = 8_000;
 
 let client: PollingMultiplayerClient | null = null;
 
@@ -56,6 +57,9 @@ export class PollingMultiplayerClient {
   private lobbyCode?: string;
   private pollTimer?: number;
   private heartbeatTimer?: number;
+  private pollInFlight = false;
+  private resultsInFlight = false;
+  private heartbeatInFlight = false;
   private lastStateJson = "";
   private lastResultsJson = "";
 
@@ -122,14 +126,21 @@ export class PollingMultiplayerClient {
   }
 
   private async post(path: string, body: object): Promise<SocketResponse> {
-    const response = await fetch(`${getSocketServerUrl()}${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.ok === false) throw new Error(data.error ?? "Multiplayer request failed.");
-    return data;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), MULTIPLAYER_REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(`${getSocketServerUrl()}${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) throw new Error(data.error ?? "Multiplayer request failed.");
+      return data;
+    } finally {
+      window.clearTimeout(timeout);
+    }
   }
 
   private startPolling(code: string): void {
@@ -153,9 +164,12 @@ export class PollingMultiplayerClient {
   }
 
   private async poll(): Promise<void> {
-    if (!this.lobbyCode) return;
+    if (!this.lobbyCode || this.pollInFlight) return;
+    this.pollInFlight = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), MULTIPLAYER_REQUEST_TIMEOUT_MS);
     try {
-      const response = await fetch(`${getSocketServerUrl()}/api/lobby/${this.lobbyCode}/state`);
+      const response = await fetch(`${getSocketServerUrl()}/api/lobby/${this.lobbyCode}/state`, { signal: controller.signal });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.ok === false || !data.state) throw new Error(data.error ?? "Could not poll lobby state.");
       const state = data.state as MultiplayerLobbyState;
@@ -171,27 +185,42 @@ export class PollingMultiplayerClient {
       }
     } catch (error) {
       this.emitLocal("connect_error", error);
+    } finally {
+      window.clearTimeout(timeout);
+      this.pollInFlight = false;
     }
   }
 
   private async sendHeartbeat(): Promise<void> {
-    if (!this.lobbyCode) return;
+    if (!this.lobbyCode || this.heartbeatInFlight) return;
+    this.heartbeatInFlight = true;
     try {
       await this.post(`/api/lobby/${this.lobbyCode}/heartbeat`, { clientId: this.clientId });
     } catch {
       // Polling will surface connection errors; heartbeat failures should not spam the UI.
+    } finally {
+      this.heartbeatInFlight = false;
     }
   }
 
   private async pollResults(code: string): Promise<void> {
-    const response = await fetch(`${getSocketServerUrl()}/api/lobby/${code}/results`);
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.ok === false || !data.results) return;
-    const results = data.results as RoundResultPayload;
-    const resultsJson = JSON.stringify(results);
-    if (resultsJson === this.lastResultsJson) return;
-    this.lastResultsJson = resultsJson;
-    this.emitLocal("round:results", results);
+    if (this.resultsInFlight) return;
+    this.resultsInFlight = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), MULTIPLAYER_REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(`${getSocketServerUrl()}/api/lobby/${code}/results`, { signal: controller.signal });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false || !data.results) return;
+      const results = data.results as RoundResultPayload;
+      const resultsJson = JSON.stringify(results);
+      if (resultsJson === this.lastResultsJson) return;
+      this.lastResultsJson = resultsJson;
+      this.emitLocal("round:results", results);
+    } finally {
+      window.clearTimeout(timeout);
+      this.resultsInFlight = false;
+    }
   }
 
   private emitLocal(event: LobbyEvent, ...args: any[]): void {

@@ -21,6 +21,7 @@ export function GuessMap({ zoneId, guessLocation, actualLocation, onGuessChange,
   const actualMarkerRef = useRef<google.maps.Marker | null>(null);
   const lineRef = useRef<google.maps.Polyline | null>(null);
   const zonePolygonRef = useRef<google.maps.Polygon | null>(null);
+  const clickListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const [expanded, setExpanded] = useState(false);
   const zone = zones[zoneId];
   const showDebugPolygon = DEBUG_TOOLS_ENABLED;
@@ -35,11 +36,27 @@ export function GuessMap({ zoneId, guessLocation, actualLocation, onGuessChange,
       streetViewControl: false,
       clickableIcons: false,
     });
-    mapRef.current.addListener("click", (event: google.maps.MapMouseEvent) => {
+    clickListenerRef.current = mapRef.current.addListener("click", (event: google.maps.MapMouseEvent) => {
       if (!event.latLng || resultMode) return;
       onGuessChange(event.latLng.toJSON());
     });
   }, [onGuessChange, resultMode, zone.center, zone.defaultZoom]);
+
+  useEffect(() => {
+    return () => {
+      clickListenerRef.current?.remove();
+      clickListenerRef.current = null;
+      guessMarkerRef.current?.setMap(null);
+      actualMarkerRef.current?.setMap(null);
+      lineRef.current?.setMap(null);
+      zonePolygonRef.current?.setMap(null);
+      if (mapRef.current) {
+        google.maps.event.clearInstanceListeners(mapRef.current);
+        mapRef.current = null;
+      }
+      if (mapDivRef.current) mapDivRef.current.replaceChildren();
+    };
+  }, []);
 
   useEffect(() => {
     if (!mapRef.current) return;
