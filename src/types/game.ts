@@ -4,6 +4,8 @@ export type ZoneId = "empel" | "rosmalen" | "engelen" | "kerkdriel" | "den-bosch
 export type ConcreteZoneId = Exclude<ZoneId, "mixed">;
 export type ModeId = "classic" | "no-move" | "timed-view";
 export type GameStatus = "home" | "loading-round" | "playing" | "round-result" | "game-over";
+export type BoundarySource = "osm-admin-boundary" | "osm-place-boundary" | "manual-gameplay-polygon" | "imported-geojson";
+export type BoundaryAccuracy = "official-ish" | "osm-derived" | "gameplay";
 
 export interface BoundsLiteral {
   north: number;
@@ -23,6 +25,10 @@ export interface GameZone {
   scoringScaleMeters?: number;
   notes?: string;
   gameplayBoundaryDisclaimer?: string;
+  boundarySource: BoundarySource;
+  boundaryAccuracy: BoundaryAccuracy;
+  boundaryNotes: string;
+  sourceUrl?: string;
 }
 
 export interface GameMode {

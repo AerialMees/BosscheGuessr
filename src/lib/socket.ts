@@ -8,9 +8,24 @@ export type SocketResponse = {
   error?: string;
 };
 
+export type HostInfo = {
+  localIps: string[];
+  hostname: string | null;
+  localDomainUrl: string | null;
+  preferredJoinUrls: string[];
+  frontendPort: number;
+  socketPort: number;
+  localFrontendUrl: string;
+  lanFrontendUrls: string[];
+  localSocketUrl: string;
+  lanSocketUrls: string[];
+  lanEnabled?: boolean;
+};
+
 type LobbyEvent = "lobby:state" | "lobby:error" | "round:results" | "connect_error";
 type Listener = (...args: any[]) => void;
 type EmitCallback = (error: Error | null, response?: SocketResponse) => void;
+const PLAYER_HEARTBEAT_INTERVAL_MS = 15_000;
 
 let client: PollingMultiplayerClient | null = null;
 
@@ -29,11 +44,18 @@ export async function getNetworkInfo(): Promise<{ hostnames: string[]; lanUrls: 
   return response.json();
 }
 
+export async function getHostInfo(): Promise<HostInfo> {
+  const response = await fetch(`${getSocketServerUrl()}/api/host-info`);
+  if (!response.ok) throw new Error("Could not load host info.");
+  return response.json();
+}
+
 export class PollingMultiplayerClient {
   private readonly listeners = new Map<LobbyEvent, Set<Listener>>();
   private readonly clientId = getClientId();
   private lobbyCode?: string;
   private pollTimer?: number;
+  private heartbeatTimer?: number;
   private lastStateJson = "";
   private lastResultsJson = "";
 
@@ -89,6 +111,8 @@ export class PollingMultiplayerClient {
         return this.post(`/api/lobby/${payload.code}/guess`, { clientId: this.clientId, roundId: payload.roundId, guessLocation: payload.guessLocation });
       case "round:next":
         return this.post(`/api/lobby/${payload.code}/next`, { clientId: this.clientId });
+      case "player:heartbeat":
+        return this.post(`/api/lobby/${payload.code}/heartbeat`, { clientId: this.clientId });
       case "lobby:leave":
         this.stopPolling();
         return this.post(`/api/lobby/${payload.code}/leave`, { clientId: this.clientId });
@@ -114,11 +138,15 @@ export class PollingMultiplayerClient {
     this.lobbyCode = code;
     void this.poll();
     this.pollTimer = window.setInterval(() => void this.poll(), 1000);
+    void this.sendHeartbeat();
+    this.heartbeatTimer = window.setInterval(() => void this.sendHeartbeat(), PLAYER_HEARTBEAT_INTERVAL_MS);
   }
 
   private stopPolling(): void {
     if (this.pollTimer) window.clearInterval(this.pollTimer);
+    if (this.heartbeatTimer) window.clearInterval(this.heartbeatTimer);
     this.pollTimer = undefined;
+    this.heartbeatTimer = undefined;
     this.lobbyCode = undefined;
     this.lastStateJson = "";
     this.lastResultsJson = "";
@@ -143,6 +171,15 @@ export class PollingMultiplayerClient {
       }
     } catch (error) {
       this.emitLocal("connect_error", error);
+    }
+  }
+
+  private async sendHeartbeat(): Promise<void> {
+    if (!this.lobbyCode) return;
+    try {
+      await this.post(`/api/lobby/${this.lobbyCode}/heartbeat`, { clientId: this.clientId });
+    } catch {
+      // Polling will surface connection errors; heartbeat failures should not spam the UI.
     }
   }
 

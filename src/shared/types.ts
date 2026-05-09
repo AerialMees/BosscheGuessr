@@ -52,6 +52,10 @@ export type MultiplayerPlayer = {
   isHost: boolean;
   connected: boolean;
   joinedAt: number;
+  lastSeenAt: number;
+  disconnectedAt?: number;
+  removedAt?: number;
+  wasRemovedForInactivity?: boolean;
   totalScore: number;
   totalDistanceMeters: number;
   guesses: Record<string, PlayerGuess>;

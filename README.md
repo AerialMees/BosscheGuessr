@@ -52,9 +52,10 @@ Never commit `.env` or API keys. This repo includes `.env.example` only.
 
 `npm run check:env` verifies that Vite can see the key without printing the full secret. If it reports a masked key like `repl..._key`, the `.env` file still contains the placeholder and needs a real Google Maps JavaScript API key.
 
-For LAN multiplayer, friends load the app through your Mac's local IP instead of `localhost`. If Maps works on the host Mac but fails on phones, add the exact LAN referrer shown by the lobby, for example:
+For LAN multiplayer, friends may load the app through your Mac's `.local` hostname or local IP instead of `localhost`. If Maps works on the host Mac but fails on phones, add the exact LAN referrers shown by the lobby, for example:
 
 ```text
+http://your-mac-name.local:5173/*
 http://192.168.1.42:5173/*
 ```
 
@@ -207,7 +208,7 @@ The one-command launcher uses one stable app server:
 
 Open the localhost URL only after the launcher prints **Ready**. If you open it earlier, the browser can show `ERR_CONNECTION_REFUSED` while Vite is still starting or restarting.
 
-If the LAN URL does not work on a university or campus Wi-Fi network, the network may block device-to-device traffic. Localhost failing is not caused by university Wi-Fi; localhost should still work on the host Mac. For party play, try a home router, phone hotspot, or another Wi-Fi network that allows local devices to see each other.
+Some public or managed Wi-Fi networks block device-to-device traffic or mDNS `.local` names. For party play, home Wi-Fi or a phone hotspot is usually simpler.
 
 ## Troubleshooting Vite restart loops
 
@@ -259,10 +260,22 @@ npm run launch
 
 5. Open the local Vite URL on the Mac.
 6. Click **Host Multiplayer**.
-7. Copy the LAN join link, for example `http://192.168.x.x:5173/?lobby=ABCD`.
+7. Copy the best join link. The lobby shows a `.local` name first when available, plus IP and localhost fallbacks.
 8. Friends open that link on the same Wi-Fi, enter a name, and join the lobby.
 
-The lobby also calls `/api/network-info` on the local server to show available LAN URLs. If multiple network adapters are active, it may show more than one address.
+The lobby calls `/api/host-info` on the local server to show available join URLs. If multiple network adapters are active, it may show more than one IP address.
+
+Nice local name:
+
+```text
+http://your-mac-name.local:5173/?lobby=ABCD
+```
+
+IP fallback:
+
+```text
+http://192.168.x.x:5173/?lobby=ABCD
+```
 
 Same Mac joining:
 
@@ -270,19 +283,21 @@ Same Mac joining:
 http://localhost:5173/?lobby=ABCD
 ```
 
-Phone/laptop joining:
+To set a prettier macOS local hostname manually, run this yourself in Terminal:
 
-```text
-http://192.168.x.x:5173/?lobby=ABCD
+```bash
+sudo scutil --set LocalHostName bosscheguessr
 ```
+
+Then try `http://bosscheguessr.local:5173`. BosscheGuessr never changes your system hostname automatically. If `.local` does not resolve, use the IP fallback.
 
 If it does not load:
 
 - Confirm everyone is on the same Wi-Fi.
 - Allow Node, Terminal, or the dev server through the macOS firewall if prompted.
-- Confirm Vite is running with `--host 0.0.0.0` through `npm run dev`.
-- Add the LAN IP referrer to the Google Maps API key restrictions.
+- Add the `.local` and/or LAN IP referrer to the Google Maps API key restrictions.
 - If the Vite port changes, update the Google referrer too.
+- Some managed/public Wi-Fi networks block LAN or `.local` joining; try a phone hotspot or home Wi-Fi.
 
 Finding your Mac's IP manually:
 
@@ -303,6 +318,7 @@ The server manages:
 - host-only settings edits
 - authoritative scoring and leaderboard sorting
 - round timers and round progression
+- multiplayer heartbeat and inactivity cleanup
 
 The host browser generates Street View rounds with the existing Google `StreetViewService`, then sends only the prepared round metadata to the server. During an active round, normal clients receive the shared `panoId`, zone, and initial POV, but not the actual location. Actual locations are revealed only on results.
 
@@ -314,6 +330,13 @@ Available multiplayer settings:
 - optional round timer
 - X-Second View time when that mode is selected
 - movement allowed toggle where the selected mode supports it
+
+Multiplayer inactivity handling:
+
+- Clients send a lightweight heartbeat every 15 seconds while in a multiplayer lobby.
+- Players who stop responding or disconnect for 120 seconds are removed from the active match so the round cannot get stuck.
+- A disconnected host can reconnect within that timeout. If they do not return, host control transfers to the first remaining connected player.
+- If no players remain, the lobby is cleaned up.
 
 To create a production build:
 
@@ -341,9 +364,12 @@ Each zone has:
 - `polygon`
 - computed `bounds`
 - `defaultZoom`
+- `boundarySource`
+- `boundaryAccuracy`
+- `boundaryNotes`
 - notes
 
-The boundaries are approximate gameplay polygons, not official cadastral, municipal, or Google boundaries. Each polygon is an editable list of WGS84 `{ lat, lng }` coordinates:
+The boundaries are GPS polygons, not rectangles. Some are OSM-derived or place-informed, and some remain documented gameplay polygons when official village boundaries are not useful for play. Each polygon is an editable list of WGS84 `{ lat, lng }` coordinates:
 
 ```ts
 polygon: [
@@ -354,11 +380,26 @@ polygon: [
 
 Bounds are computed from the polygon with `getBoundsForPolygon`, then used for random candidate generation and debug fitting. To tune an area, move polygon vertices in `src/data/zones.ts`, run the game, and test generation.
 
+`src/data/boundaries/` is reserved for checked-in GeoJSON boundary exports. `scripts/import-boundaries.mjs` documents a developer-only Overpass/OSM import workflow. The game never calls Overpass during normal play.
+
 Empel intentionally uses a tighter polygon than the first MVP so it stays around the built-up village. `src/data/zones.ts` also exports `empelCorePolygon` and a hidden `empel-core` testing zone if you want an even stricter test area later.
 
 Den Bosch uses a broader urban gameplay polygon and has a wider scoring scale than the smaller village maps.
 
-When `VITE_ENABLE_DEBUG_TOOLS=true`, the guessing map draws the selected gameplay polygon with a visible outline and this note: "Showing gameplay polygon, not official boundary."
+When `VITE_ENABLE_DEBUG_TOOLS=true`, the guessing map draws the selected polygon and shows boundary source metadata.
+
+## Mobile UI notes
+
+During active multiplayer rounds, phone screens prioritize Street View, the guess map, timer, round/score HUD, and the submit button. The full player list collapses away on small screens; between rounds and on results screens, the scoreboard returns.
+
+Critical controls use solid high-contrast fills:
+
+- Submit Guess
+- Expand Map / Collapse Map
+- Reset View
+- Start / Next round actions
+
+Reset View returns Street View to the original round pano, heading, pitch, and zoom. In X-Second View, Reset View is disabled after the view time expires so it cannot reveal the hidden panorama.
 
 ## Available modes
 
@@ -392,7 +433,7 @@ The final screen and home preview use the same storage helper in `src/lib/leader
 ## Development notes
 
 - `src/lib/googleMapsLoader.ts` loads the Maps JavaScript API once with `@googlemaps/js-api-loader`.
-- `src/lib/streetView.ts` uses `StreetViewService.getPanorama` and requests outdoor Street View where supported.
+- `src/lib/streetView.ts` uses `StreetViewService.getPanorama`, requests outdoor Street View where supported, and rejects returned panoramas outside the selected polygon.
 - `src/lib/geo.ts` contains bounds, polygon, random point, and distance helpers.
 - `src/lib/scoring.ts` contains scoring and rating text.
 - `src/components/GuessMap.tsx` owns the guess/result map markers and line.

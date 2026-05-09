@@ -14,6 +14,8 @@ const DEFAULT_SETTINGS = {
   showRoundResultsAfterEveryoneGuessed: true,
 };
 
+export const PLAYER_INACTIVITY_TIMEOUT_MS = 120_000;
+
 export class LobbyManager {
   lobbies = new Map();
   onRoundExpired;
@@ -42,11 +44,14 @@ export class LobbyManager {
 
   joinLobby(codeInput, socketId, playerName) {
     const lobby = this.requireLobby(codeInput);
-    const existing = lobby.players.find((player) => player.name.toLowerCase() === sanitizePlayerName(playerName).toLowerCase() && !player.connected);
+    const now = Date.now();
+    const existing = lobby.players.find((player) => player.name.toLowerCase() === sanitizePlayerName(playerName).toLowerCase() && !player.removedAt && !player.connected);
     if (existing) {
       existing.socketId = socketId;
       existing.connected = true;
-      existing.isHost = lobby.hostSocketId === socketId;
+      existing.lastSeenAt = now;
+      existing.disconnectedAt = undefined;
+      if (existing.isHost) lobby.hostSocketId = socketId;
       return { state: this.toPublicState(lobby), playerId: existing.id };
     }
 
@@ -57,6 +62,7 @@ export class LobbyManager {
 
   updateSettings(code, socketId, patch) {
     const lobby = this.requireHostLobby(code, socketId);
+    this.touchPlayer(lobby, socketId);
     if (lobby.status !== "waiting") throw new Error("Settings can only be changed before the game starts.");
     lobby.settings = sanitizeSettings({ ...lobby.settings, ...patch });
     return this.toPublicState(lobby);
@@ -64,6 +70,7 @@ export class LobbyManager {
 
   startGame(code, socketId, preparedRoundsInput) {
     const lobby = this.requireHostLobby(code, socketId);
+    this.touchPlayer(lobby, socketId);
     const preparedRounds = Array.isArray(preparedRoundsInput) ? preparedRoundsInput.map(validatePreparedRound).slice(0, lobby.settings.rounds) : [];
     if (preparedRounds.length < lobby.settings.rounds) throw new Error("Not enough prepared rounds.");
     lobby.rounds = preparedRounds.map((round, index) => ({
@@ -86,8 +93,9 @@ export class LobbyManager {
 
   submitGuess(code, socketId, roundId, guessLocation) {
     const lobby = this.requireLobby(code);
+    this.touchPlayer(lobby, socketId);
     if (lobby.status !== "in-round") throw new Error("This round is not accepting guesses.");
-    const player = lobby.players.find((candidate) => candidate.socketId === socketId && candidate.connected);
+    const player = lobby.players.find((candidate) => candidate.socketId === socketId && candidate.connected && !candidate.removedAt);
     const round = lobby.rounds[lobby.currentRoundIndex];
     if (!player || !round || round.id !== roundId) throw new Error("Invalid round guess.");
     if (player.guesses[roundId]) return { state: this.toPublicState(lobby) };
@@ -108,6 +116,7 @@ export class LobbyManager {
 
   nextRound(code, socketId) {
     const lobby = this.requireHostLobby(code, socketId);
+    this.touchPlayer(lobby, socketId);
     if (lobby.status !== "round-results") throw new Error("Round results are not ready.");
     if (lobby.currentRoundIndex >= lobby.rounds.length - 1) {
       lobby.status = "finished";
@@ -124,18 +133,22 @@ export class LobbyManager {
       const player = lobby.players.find((candidate) => candidate.socketId === socketId);
       if (!player) continue;
       player.connected = false;
-      if (lobby.hostSocketId === socketId) {
-        const nextHost = lobby.players.find((candidate) => candidate.connected);
-        if (nextHost) {
-          lobby.hostSocketId = nextHost.socketId;
-          lobby.players.forEach((candidate) => {
-            candidate.isHost = candidate.id === nextHost.id;
-          });
+      player.disconnectedAt = Date.now();
+      if (lobby.status === "in-round") {
+        const round = lobby.rounds[lobby.currentRoundIndex];
+        if (round && this.everyoneConnectedGuessed(lobby, round.id) && lobby.settings.showRoundResultsAfterEveryoneGuessed) {
+          this.finishRound(lobby);
         }
       }
       changed.push(this.toPublicState(lobby, lobby.status !== "in-round"));
     }
     return changed;
+  }
+
+  heartbeat(code, socketId) {
+    const lobby = this.requireLobby(code);
+    this.touchPlayer(lobby, socketId);
+    return this.toPublicState(lobby, lobby.status !== "in-round");
   }
 
   getLobby(code) {
@@ -161,6 +174,40 @@ export class LobbyManager {
         this.lobbies.delete(code);
       }
     }
+  }
+
+  cleanupInactivePlayers(timeoutMs = PLAYER_INACTIVITY_TIMEOUT_MS) {
+    const now = Date.now();
+    const changed = [];
+    for (const [code, lobby] of this.lobbies) {
+      let lobbyChanged = false;
+      for (const player of lobby.players) {
+        if (player.removedAt) continue;
+        if (now - (player.lastSeenAt ?? player.joinedAt) <= timeoutMs) continue;
+        player.connected = false;
+        player.removedAt = now;
+        player.disconnectedAt ??= now;
+        player.wasRemovedForInactivity = true;
+        lobbyChanged = true;
+      }
+
+      if (lobbyChanged) {
+        this.ensureActiveHost(lobby);
+        if (lobby.players.every((player) => player.removedAt)) {
+          if (lobby.roundTimer) clearTimeout(lobby.roundTimer);
+          this.lobbies.delete(code);
+          continue;
+        }
+        if (lobby.status === "in-round") {
+          const round = lobby.rounds[lobby.currentRoundIndex];
+          if (round && this.everyoneConnectedGuessed(lobby, round.id) && lobby.settings.showRoundResultsAfterEveryoneGuessed) {
+            this.finishRound(lobby);
+          }
+        }
+        changed.push(this.toPublicState(lobby, lobby.status !== "in-round"));
+      }
+    }
+    return changed;
   }
 
   startCurrentRound(lobby) {
@@ -196,7 +243,7 @@ export class LobbyManager {
   }
 
   everyoneConnectedGuessed(lobby, roundId) {
-    const connectedPlayers = lobby.players.filter((player) => player.connected);
+    const connectedPlayers = lobby.players.filter((player) => player.connected && !player.removedAt);
     return connectedPlayers.length > 0 && connectedPlayers.every((player) => Boolean(player.guesses[roundId]));
   }
 
@@ -220,6 +267,7 @@ export class LobbyManager {
   publicLeaderboard(lobby) {
     const currentRoundId = lobby.rounds[lobby.currentRoundIndex]?.id;
     return lobby.players
+      .filter((player) => !player.removedAt)
       .map((player) => this.publicPlayer(player, currentRoundId))
       .sort((a, b) => b.totalScore - a.totalScore || a.totalDistanceMeters - b.totalDistanceMeters);
   }
@@ -248,6 +296,10 @@ export class LobbyManager {
       isHost,
       connected: true,
       joinedAt: Date.now(),
+      lastSeenAt: Date.now(),
+      disconnectedAt: undefined,
+      removedAt: undefined,
+      wasRemovedForInactivity: false,
       totalScore: 0,
       totalDistanceMeters: 0,
       guesses: {},
@@ -264,6 +316,30 @@ export class LobbyManager {
     const lobby = this.requireLobby(code);
     if (lobby.hostSocketId !== socketId) throw new Error("Only the host can do that.");
     return lobby;
+  }
+
+  touchPlayer(lobby, socketId) {
+    const player = lobby.players.find((candidate) => candidate.socketId === socketId && !candidate.removedAt);
+    if (!player) return;
+    player.connected = true;
+    player.lastSeenAt = Date.now();
+    player.disconnectedAt = undefined;
+  }
+
+  ensureActiveHost(lobby) {
+    const currentHost = lobby.players.find((player) => player.socketId === lobby.hostSocketId && !player.removedAt);
+    if (currentHost) {
+      lobby.players.forEach((player) => {
+        player.isHost = player.id === currentHost.id;
+      });
+      return;
+    }
+    const nextHost = lobby.players.find((player) => player.connected && !player.removedAt) ?? lobby.players.find((player) => !player.removedAt);
+    if (!nextHost) return;
+    lobby.hostSocketId = nextHost.socketId;
+    lobby.players.forEach((player) => {
+      player.isHost = player.id === nextHost.id;
+    });
   }
 }
 

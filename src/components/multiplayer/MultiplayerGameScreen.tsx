@@ -32,6 +32,9 @@ export function MultiplayerGameScreen({ lobby, playerId, onSubmitGuess }: Multip
   const zone = zoneId ? zones[zoneId] : undefined;
   const roundRemaining = round?.endsAt ? Math.max(0, Math.ceil((round.endsAt - now) / 1000)) : null;
   const viewRemaining = lobby.settings.viewTimeLimitSeconds && round?.startedAt ? Math.max(0, (round.startedAt + lobby.settings.viewTimeLimitSeconds * 1000 - now) / 1000) : null;
+  const activePlayers = lobby.players.filter((candidate) => !candidate.removedAt);
+  const disconnectedPlayers = lobby.players.filter((candidate) => !candidate.connected && !candidate.removedAt);
+  const removedPlayers = lobby.players.filter((candidate) => candidate.removedAt);
 
   useEffect(() => {
     let active = true;
@@ -117,6 +120,7 @@ export function MultiplayerGameScreen({ lobby, playerId, onSubmitGuess }: Multip
         <span>{lobby.settings.modeId}</span>
         {roundRemaining !== null && <span>{roundRemaining}s</span>}
         {hasGuessed && <span>GUESS LOCKED</span>}
+        <span>{activePlayers.length} PLAYERS</span>
       </div>
       {viewHidden && (
         <div className="memory-overlay">
@@ -125,6 +129,16 @@ export function MultiplayerGameScreen({ lobby, playerId, onSubmitGuess }: Multip
             <h2>Street View hidden</h2>
           </div>
         </div>
+      )}
+      {disconnectedPlayers.length > 0 && (
+        <div className="multiplayer-toast">
+          {disconnectedPlayers.length === 1
+            ? `${disconnectedPlayers[0].name} disconnected — waiting up to 120s`
+            : `${disconnectedPlayers.length} players disconnected — waiting up to 120s`}
+        </div>
+      )}
+      {disconnectedPlayers.length === 0 && removedPlayers.length > 0 && (
+        <div className="multiplayer-toast">{removedPlayers.at(-1)?.name ?? "Player"} removed due to inactivity</div>
       )}
       <GuessMap
         zoneId={zoneId}
@@ -137,10 +151,13 @@ export function MultiplayerGameScreen({ lobby, playerId, onSubmitGuess }: Multip
           if (guessLocation && !hasGuessed) onSubmitGuess(round.id, guessLocation);
         }}
       />
-      <aside className="multiplayer-status panel">
+      <aside className="multiplayer-status panel active-round-status">
         <h3>Players</h3>
         {lobby.players.map((candidate) => (
-          <p key={candidate.id}>{candidate.guessedCurrentRound ? "✓" : "○"} {candidate.name}</p>
+          <p key={candidate.id}>
+            {candidate.removedAt ? "×" : candidate.connected ? (candidate.guessedCurrentRound ? "✓" : "○") : "!"} {candidate.name}
+            {candidate.removedAt ? <small> removed</small> : !candidate.connected && <small> disconnected</small>}
+          </p>
         ))}
       </aside>
     </main>

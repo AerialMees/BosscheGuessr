@@ -110,13 +110,17 @@ export function GuessMap({ zoneId, guessLocation, actualLocation, onGuessChange,
   return (
     <div className={`guess-map guess-map-container ${expanded ? "guess-map-expanded" : ""}`}>
       <div ref={mapDivRef} className="guess-map-canvas" />
-      {showDebugPolygon && <div className="debug-boundary-label">Showing gameplay polygon, not official boundary.</div>}
+      {showDebugPolygon && (
+        <div className="debug-boundary-label">
+          {zone.boundaryAccuracy.toUpperCase()} boundary · {zone.boundarySource}
+        </div>
+      )}
       <div className="guess-map-controls">
-        <RetroButton type="button" tone="secondary" onClick={() => setExpanded((value) => !value)}>
-          {expanded ? "Shrink" : "Expand"}
+        <RetroButton type="button" tone="map" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? "Collapse Map" : "Expand Map"}
         </RetroButton>
         {!resultMode && (
-          <RetroButton type="button" onClick={onSubmit} disabled={!guessLocation}>
+          <RetroButton type="button" tone="solid-orange" onClick={onSubmit} disabled={!guessLocation}>
             Submit Guess
           </RetroButton>
         )}

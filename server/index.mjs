@@ -3,7 +3,7 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { LobbyManager } from "./lobbyManager.mjs";
-import { getLanUrls } from "./network.mjs";
+import { getHostInfo as buildHostInfo, getLanUrls } from "./network.mjs";
 
 const SERVER_PORT = Number(process.env.PORT ?? 3001);
 const REQUESTED_SERVER_HOST = process.env.SERVER_HOST ?? "0.0.0.0";
@@ -18,6 +18,7 @@ const lobbyManager = new LobbyManager(() => undefined);
 const server = http.createServer(handleHttpRequest);
 
 setInterval(() => lobbyManager.cleanupOldLobbies(), 30 * 60 * 1000);
+setInterval(() => lobbyManager.cleanupInactivePlayers(), 10 * 1000);
 
 server.on("error", (error) => {
   if (error.code === "EADDRINUSE") {
@@ -67,7 +68,10 @@ async function handleHttpRequest(req, res) {
     }
 
     if (requestUrl.pathname === "/api/host-info" && req.method === "GET") {
-      sendJson(res, getHostInfo());
+      sendJson(res, {
+        ...buildHostInfo({ frontendPort: CLIENT_PORT, socketPort: SERVER_PORT }),
+        lanEnabled: activeServerHost === "0.0.0.0",
+      });
       return;
     }
 
@@ -125,6 +129,12 @@ async function handleHttpRequest(req, res) {
 
       if (action === "next" && req.method === "POST") {
         const state = lobbyManager.nextRound(code, requireClientId(body));
+        sendJson(res, { ok: true, state });
+        return;
+      }
+
+      if (action === "heartbeat" && req.method === "POST") {
+        const state = lobbyManager.heartbeat(code, requireClientId(body));
         sendJson(res, { ok: true, state });
         return;
       }
@@ -218,22 +228,6 @@ function setCorsHeaders(res) {
 function sendJson(res, payload, status = 200) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
-}
-
-function getHostInfo() {
-  const { lanUrls } = getLanUrls(CLIENT_PORT);
-  const lanSocketUrls = lanUrls.map((url) => url.replace(`:${CLIENT_PORT}`, `:${SERVER_PORT}`));
-  const localIps = lanUrls.map((url) => new URL(url).hostname);
-  return {
-    localIps,
-    frontendPort: CLIENT_PORT,
-    socketPort: SERVER_PORT,
-    localFrontendUrl: `http://localhost:${CLIENT_PORT}`,
-    lanFrontendUrls: lanUrls,
-    localSocketUrl: `http://localhost:${SERVER_PORT}`,
-    lanSocketUrls: activeServerHost === "0.0.0.0" ? lanSocketUrls : [],
-    lanEnabled: activeServerHost === "0.0.0.0",
-  };
 }
 
 function requireClientId(body) {

@@ -46,7 +46,7 @@ if (portIssues.length) {
 renderStatusBars({ env: "done", ports: "done", build: "waiting", server: "waiting", stability: "waiting" });
 for (const warning of portWarnings) console.log(`Warning: ${warning}`);
 
-const lanUrls = getLanUrls(CLIENT_PORT);
+const hostInfo = getLaunchHostInfo(CLIENT_PORT);
 console.log("Environment OK");
 console.log(`Google Maps key: ${mask(apiKey)}`);
 console.log("");
@@ -189,7 +189,7 @@ async function waitUntilReady() {
       if (Date.now() - launchState.stableSince >= STABILITY_MS) {
         launchState.ready = true;
         renderStatusBars({ env: "done", ports: "done", build: "done", server: "done", stability: "done" });
-        printReady(lanUrls);
+        printReady(hostInfo);
         return;
       }
     } else {
@@ -214,26 +214,31 @@ async function waitUntilReady() {
   }
 }
 
-function printReady(urls) {
+function printReady(info) {
   console.log("");
   console.log("Ready.");
   console.log("Open on this Mac:");
   console.log(`  http://localhost:${SERVER_PORT}`);
   console.log("");
-  if (urls.length) {
-    console.log("Friends on the same Wi-Fi can try:");
-    for (const url of urls) console.log(`  ${url}`);
+  if (info.localDomainUrl) {
+    console.log("Try this local domain:");
+    console.log(`  ${info.localDomainUrl}`);
     console.log("");
-    console.log("Google Maps LAN referrer reminder:");
-    for (const url of urls) console.log(`  ${url}/*`);
+  }
+  if (info.lanUrls.length) {
+    console.log("Friends on the same Wi-Fi can try:");
+    for (const url of info.lanUrls) console.log(`  ${url}`);
+    console.log("");
+    console.log("Google Maps LAN referrer reminders:");
+    if (info.localDomainUrl) console.log(`  ${info.localDomainUrl}/*`);
+    for (const url of info.lanUrls) console.log(`  ${url}/*`);
   } else {
     console.log("No LAN IPv4 address found yet. Check Wi-Fi if friends cannot join.");
   }
   console.log("");
-  console.log("University Wi-Fi note:");
-  console.log("  localhost should still work on this Mac.");
-  console.log("  Friends joining via LAN IP may be blocked by client isolation.");
-  console.log("  Try a hotspot/home Wi-Fi if the LAN URL does not work from other devices.");
+  console.log("Network note:");
+  console.log("  Some public or managed Wi-Fi networks block .local/LAN joining.");
+  console.log("  If friends cannot connect, try the IP fallback or a phone hotspot/home Wi-Fi.");
 }
 
 function renderStatusBars(steps) {
@@ -337,6 +342,26 @@ function getLanUrls(port) {
     }
   }
   return urls;
+}
+
+function getLaunchHostInfo(port) {
+  const hostname = sanitizeLocalHostname(os.hostname());
+  return {
+    hostname,
+    localDomainUrl: hostname ? `http://${hostname}.local:${port}` : null,
+    lanUrls: getLanUrls(port),
+  };
+}
+
+function sanitizeLocalHostname(value) {
+  const hostname = String(value)
+    .trim()
+    .replace(/\.local$/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return hostname || null;
 }
 
 async function getPortPreflight() {

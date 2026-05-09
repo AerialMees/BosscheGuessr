@@ -29,6 +29,7 @@ export function GameScreen({ round, modeId, viewSeconds, totalRounds, totalScore
   const [streetViewHidden, setStreetViewHidden] = useState(false);
   const mode = modes[modeId];
   const activeTimerSeconds = mode.hideStreetViewAfterTime ? viewSeconds : mode.timeLimitSeconds;
+  const resetDisabled = Boolean(mode.hideStreetViewAfterTime && streetViewHidden);
 
   useEffect(() => {
     const panoDiv = panoDivRef.current;
@@ -118,7 +119,7 @@ export function GameScreen({ round, modeId, viewSeconds, totalRounds, totalScore
         </div>
       )}
       <div className="game-actions">
-        <RetroButton type="button" tone="secondary" onClick={onResetView}>
+        <RetroButton type="button" tone="solid-magenta" onClick={handleResetView} disabled={resetDisabled} title={resetDisabled ? "View time expired" : "Reset View"}>
           Reset View
         </RetroButton>
       </div>
@@ -134,6 +135,25 @@ export function GameScreen({ round, modeId, viewSeconds, totalRounds, totalScore
       {DEBUG_TOOLS_ENABLED && <DebugPanel round={round} onTestGenerate={onDebugGenerate} />}
     </main>
   );
+
+  function handleResetView() {
+    onResetView();
+    const panorama = panoramaRef.current;
+    if (DEBUG_TOOLS_ENABLED) {
+      console.debug("[StreetViewPanorama] reset requested", {
+        hasPanorama: Boolean(panorama),
+        initialPanoId: round.panoId,
+        currentPanoId: panorama?.getPano(),
+        disabledByTimedView: resetDisabled,
+      });
+    }
+    if (!panorama || resetDisabled) return;
+    panorama.setPano(round.panoId);
+    panorama.setPov(round.initialPov);
+    panorama.setZoom(round.initialPov.zoom);
+    panorama.setVisible(true);
+    google.maps.event.trigger(panorama, "resize");
+  }
 }
 
 function formatTimer(seconds: number): string {

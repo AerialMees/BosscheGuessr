@@ -41,7 +41,7 @@ export function MultiplayerResultsScreen({ lobby, results, playerId, onNextRound
               return (
                 <tr key={player.id}>
                   <td>{player.name}</td>
-                  <td>{result ? formatDistance(result.distanceMeters) : "No guess"}</td>
+                  <td>{result ? formatDistance(result.distanceMeters) : player.removedAt ? "Removed" : "No guess"}</td>
                   <td>{result?.score ?? 0}</td>
                 </tr>
               );

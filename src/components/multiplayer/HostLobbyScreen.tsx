@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { clampTimedViewSeconds, modes } from "../../data/modes";
 import { selectableZones } from "../../data/zones";
-import { getNetworkInfo } from "../../lib/socket";
+import { getHostInfo, type HostInfo } from "../../lib/socket";
 import type { MultiplayerLobbyState, MultiplayerSettings } from "../../shared/types";
 import type { ModeId } from "../../types/game";
 import { RetroButton } from "../RetroButton";
@@ -16,13 +16,24 @@ interface HostLobbyScreenProps {
 }
 
 export function HostLobbyScreen({ lobby, playerId, loading, onSettingsChange, onStart, onBack }: HostLobbyScreenProps) {
-  const [lanUrls, setLanUrls] = useState<string[]>([]);
+  const [hostInfo, setHostInfo] = useState<HostInfo | null>(null);
   const isHost = lobby.players.find((player) => player.id === playerId)?.isHost;
-  const joinLinks = useMemo(() => lanUrls.map((url) => `${url}/?lobby=${lobby.code}`), [lanUrls, lobby.code]);
-  const firstJoinLink = joinLinks[0] ?? `${window.location.origin}/?lobby=${lobby.code}`;
+  const joinOptions = useMemo(() => {
+    const options: { label: string; helper: string; url: string }[] = [];
+    const withLobby = (url: string) => `${url.replace(/\/$/, "")}/?lobby=${lobby.code}`;
+    if (hostInfo?.localDomainUrl) {
+      options.push({ label: "Try this first", helper: ".local Bonjour name", url: withLobby(hostInfo.localDomainUrl) });
+    }
+    for (const url of hostInfo?.lanFrontendUrls ?? []) {
+      options.push({ label: "IP fallback", helper: "Same Wi-Fi only", url: withLobby(url) });
+    }
+    options.push({ label: "This Mac only", helper: "Local browser tabs", url: withLobby(hostInfo?.localFrontendUrl ?? window.location.origin) });
+    return options;
+  }, [hostInfo, lobby.code]);
+  const firstJoinLink = joinOptions[0]?.url ?? `${window.location.origin}/?lobby=${lobby.code}`;
 
   useEffect(() => {
-    void getNetworkInfo().then((info) => setLanUrls(info.lanUrls)).catch(() => setLanUrls([]));
+    void getHostInfo().then(setHostInfo).catch(() => setHostInfo(null));
   }, []);
 
   return (
@@ -30,20 +41,25 @@ export function HostLobbyScreen({ lobby, playerId, loading, onSettingsChange, on
       <section className="panel lobby-hero">
         <p className="eyebrow">LAN lobby</p>
         <h1>Lobby {lobby.code}</h1>
-        <p>Friends on the same Wi-Fi can join with this link.</p>
-        <div className="join-link-box">{firstJoinLink}</div>
+        <p>Friends on the same Wi-Fi can join with one of these links.</p>
+        <div className="join-options">
+          {joinOptions.map((option) => (
+            <div className="join-option" key={`${option.label}-${option.url}`}>
+              <div>
+                <strong>{option.label}</strong>
+                <small>{option.helper}</small>
+                <code>{option.url}</code>
+              </div>
+              <RetroButton type="button" tone="solid-blue" onClick={() => navigator.clipboard.writeText(option.url)}>Copy</RetroButton>
+            </div>
+          ))}
+        </div>
         <div className="button-row">
-          <RetroButton type="button" onClick={() => navigator.clipboard.writeText(firstJoinLink)}>Copy Join Link</RetroButton>
+          <RetroButton type="button" tone="solid-orange" onClick={() => navigator.clipboard.writeText(firstJoinLink)}>Copy Best Link</RetroButton>
           <RetroButton type="button" tone="secondary" onClick={() => navigator.clipboard.writeText(lobby.code)}>Copy Code</RetroButton>
           <RetroButton type="button" tone="secondary" onClick={onBack}>Leave</RetroButton>
         </div>
-        {joinLinks.length > 1 && (
-          <details>
-            <summary>Other LAN addresses</summary>
-            {joinLinks.map((link) => <p key={link}>{link}</p>)}
-          </details>
-        )}
-        <p className="text-muted">Same Wi-Fi required. If it fails, check macOS firewall and Google Maps referrer restrictions.</p>
+        <p className="text-muted">Same Wi-Fi required. If .local fails, use the IP fallback.</p>
       </section>
 
       <section className="panel">
@@ -52,7 +68,7 @@ export function HostLobbyScreen({ lobby, playerId, loading, onSettingsChange, on
           {lobby.players.map((player) => (
             <div className="player-pill" key={player.id}>
               <span>{player.name}</span>
-              <small>{player.isHost ? "HOST" : player.connected ? "READY" : "OFFLINE"}</small>
+              <small>{player.removedAt ? "REMOVED" : player.isHost ? "HOST" : player.connected ? "READY" : "DISCONNECTED"}</small>
             </div>
           ))}
         </div>
@@ -124,7 +140,7 @@ export function HostLobbyScreen({ lobby, playerId, loading, onSettingsChange, on
           Movement allowed
         </label>
         {isHost && (
-          <RetroButton type="button" onClick={onStart} disabled={loading || lobby.players.filter((player) => player.connected).length === 0}>
+          <RetroButton type="button" onClick={onStart} disabled={loading || lobby.players.filter((player) => player.connected && !player.removedAt).length === 0}>
             {loading ? "Preparing Rounds..." : "Start Competition"}
           </RetroButton>
         )}

@@ -2,6 +2,8 @@ import type { ConcreteZoneId, GameZone, ZoneId } from "../types/game";
 import { getBoundsForPolygon } from "../lib/geo";
 
 const gameplayBoundaryDisclaimer = "Gameplay polygon, not an official boundary. Manually tune after testing.";
+const osmBoundaryNote = "Boundary is based on OSM/place research, then gameplay-tuned to keep rounds in the recognizable built-up area.";
+const manualBoundaryNote = "No clean village administrative polygon was reliable enough for gameplay; this is a GPS-defined gameplay polygon with source notes.";
 
 const engelenPolygon = [
   { lat: 51.7283, lng: 5.2528 },
@@ -82,6 +84,10 @@ export const zones: Record<ConcreteZoneId, GameZone> = {
     difficultyLabel: "Canal suburb chaos",
     notes: "Main village and nearby residential streets, avoiding too much open countryside.",
     gameplayBoundaryDisclaimer,
+    boundarySource: "manual-gameplay-polygon",
+    boundaryAccuracy: "gameplay",
+    boundaryNotes: `${manualBoundaryNote} Engelen is treated as a local village/neighbourhood game area rather than a municipal boundary.`,
+    sourceUrl: "https://www.openstreetmap.org/search?query=Engelen%2C%20%27s-Hertogenbosch",
   },
   empel: {
     id: "empel",
@@ -93,6 +99,10 @@ export const zones: Record<ConcreteZoneId, GameZone> = {
     difficultyLabel: "Village edge mode",
     notes: "Tighter Empel gameplay area focused on the built-up village core.",
     gameplayBoundaryDisclaimer,
+    boundarySource: "manual-gameplay-polygon",
+    boundaryAccuracy: "gameplay",
+    boundaryNotes: `${manualBoundaryNote} Empel is intentionally constrained to avoid Gewande, Oud-Empel outskirts, farmland, and long dike drift.`,
+    sourceUrl: "https://www.openstreetmap.org/search?query=Empel%2C%20%27s-Hertogenbosch",
   },
   rosmalen: {
     id: "rosmalen",
@@ -104,6 +114,10 @@ export const zones: Record<ConcreteZoneId, GameZone> = {
     difficultyLabel: "Suburban maze",
     notes: "Practical gameplay polygon around the main built-up area.",
     gameplayBoundaryDisclaimer,
+    boundarySource: "osm-place-boundary",
+    boundaryAccuracy: "osm-derived",
+    boundaryNotes: `${osmBoundaryNote} Rosmalen is larger than the villages, so the polygon follows the main urban area and avoids broad rural edges.`,
+    sourceUrl: "https://www.openstreetmap.org/search?query=Rosmalen",
   },
   kerkdriel: {
     id: "kerkdriel",
@@ -115,6 +129,10 @@ export const zones: Record<ConcreteZoneId, GameZone> = {
     difficultyLabel: "Across the Maas",
     notes: "Village and nearby residential roads, avoiding excessive waterfront/outskirt drift.",
     gameplayBoundaryDisclaimer,
+    boundarySource: "osm-place-boundary",
+    boundaryAccuracy: "osm-derived",
+    boundaryNotes: `${osmBoundaryNote} Kerkdriel is kept to village/residential play and avoids too much campsite or waterfront edge area.`,
+    sourceUrl: "https://www.openstreetmap.org/search?query=Kerkdriel",
   },
   "den-bosch": {
     id: "den-bosch",
@@ -127,6 +145,10 @@ export const zones: Record<ConcreteZoneId, GameZone> = {
     scoringScaleMeters: 1000,
     notes: "Approximate gameplay polygon for the main urban area of Den Bosch; not an official boundary.",
     gameplayBoundaryDisclaimer,
+    boundarySource: "imported-geojson",
+    boundaryAccuracy: "gameplay",
+    boundaryNotes: "Den Bosch municipality boundaries are too broad for this game, so this is a GPS-defined urban gameplay polygon derived from local OSM/map context and tuned to avoid far villages.",
+    sourceUrl: "https://www.openstreetmap.org/relation/182993",
   },
 };
 
@@ -141,6 +163,9 @@ export const testingZones = {
     difficultyLabel: "Very tight Empel",
     notes: "Optional stricter polygon for testing; not shown in the main selector.",
     gameplayBoundaryDisclaimer,
+    boundarySource: "manual-gameplay-polygon",
+    boundaryAccuracy: "gameplay",
+    boundaryNotes: "Extra tight Empel core polygon for testing highly constrained rounds.",
   },
 } satisfies Record<string, GameZone>;
 

@@ -3,7 +3,7 @@ import { sound } from "../lib/sound";
 
 interface RetroButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  tone?: "primary" | "secondary" | "danger";
+  tone?: "primary" | "secondary" | "danger" | "solid-blue" | "solid-orange" | "solid-magenta" | "map";
 }
 
 export function RetroButton({ children, tone = "primary", className = "", ...props }: RetroButtonProps) {
